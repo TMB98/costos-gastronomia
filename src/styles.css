@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Animaciones (antes inyectadas en build.py) ── */
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-toast-in { animation: toastIn 0.18s ease-out; }
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modalScaleIn {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-modal-overlay { animation: modalFadeIn 0.15s ease-out; }
+.animate-modal-panel { animation: modalScaleIn 0.18s cubic-bezier(0.16, 1, 0.3, 1); }
+
+/* ── Colores de texto que se aclaran solos en modo oscuro (ver src/config/constants.js) ── */
+:root {
+  --navy-text: #1B3A6B;
+  --navy-bg-soft: #dbeafe;
+  --verde-text: #15803d;
+  --rojo-text: #b91c1c;
+  --amarillo-text: #b45309;
+}
+.dark {
+  --navy-text: #7EB2F3;
+  --navy-bg-soft: rgba(126, 178, 243, 0.18);
+  --verde-text: #4ADE80;
+  --rojo-text: #F87171;
+  --amarillo-text: #FBBF24;
+}
