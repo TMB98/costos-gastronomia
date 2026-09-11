@@ -1,10 +1,13 @@
 name: Publicar en GitHub Pages
 
+# Se dispara solo cuando subís algo a la rama "main".
+# Nada de esto corre en tu compu — todo pasa en los servidores de GitHub.
 on:
   push:
     branches: ["main"]
-  workflow_dispatch:
+  workflow_dispatch: # también te deja apretar "Run workflow" a mano desde la web si querés
 
+# Permisos que necesita el robot para poder publicar en Pages
 permissions:
   contents: read
   pages: write
@@ -32,6 +35,9 @@ jobs:
 
       - name: Compilar (npm run build)
         run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Preparar lo compilado para publicar
         uses: actions/upload-pages-artifact@v3
