@@ -2,12 +2,13 @@ import React, { useState } from "react";
 import { NAVY, NAVY_TEXT, ROJO, ROJO_BG, inputCls } from "../config/constants.js";
 import { Eye, EyeOff } from "../components/icons.jsx";
 import Campo from "../components/Campo.jsx";
-import { USUARIOS, LOGIN_STORAGE_KEY } from "./usuarios.js";
+import { iniciarSesion } from "../services/supabase.js";
 
 function PantallaLogin({ onIngresar }) {
-  const [usuario, setUsuario] = useState("");
+  const [email, setEmail] = useState("");
   const [clave, setClave] = useState("");
-  const [error, setError] = useState(false);
+  const [error, setError] = useState("");
+  const [cargando, setCargando] = useState(false);
   const [mostrarClave, setMostrarClave] = useState(false);
 
   // Ojo: evitamos depender de <form onSubmit> / botón type="submit". En algunos
@@ -15,16 +16,17 @@ function PantallaLogin({ onIngresar }) {
   // el envío nativo de formularios puede estar bloqueado sin tirar ningún error
   // visible — el click simplemente no hace nada. Por eso todo se maneja con
   // onClick directo, y "Enter" se captura a mano en cada input.
-  const intentar = () => {
-    const encontrado = USUARIOS.find(
-      (u) => u.usuario.toLowerCase() === usuario.trim().toLowerCase() && u.clave === clave
-    );
-    if (encontrado) {
-      try { localStorage.setItem(LOGIN_STORAGE_KEY, JSON.stringify({ usuario: encontrado.usuario, rol: encontrado.rol })); } catch (err) {}
-      setError(false);
-      onIngresar(encontrado);
-    } else {
-      setError(true);
+  const intentar = async () => {
+    if (!email.trim() || !clave || cargando) return;
+    setCargando(true);
+    setError("");
+    try {
+      const session = await iniciarSesion(email.trim(), clave);
+      onIngresar(session);
+    } catch (e) {
+      setError("Usuario o contraseña incorrectos");
+    } finally {
+      setCargando(false);
     }
   };
   const alPresionarEnter = (e) => { if (e.key === "Enter") intentar(); };
@@ -37,18 +39,18 @@ function PantallaLogin({ onIngresar }) {
             🔒
           </div>
           <h1 className="text-lg font-bold" style={{ color: NAVY_TEXT }}>Control de costos gastronómico</h1>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Ingresá usuario y contraseña para continuar</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Ingresá con tu cuenta para continuar</p>
         </div>
         <div className="space-y-3">
-          <Campo label="Usuario">
-            <input autoFocus className={inputCls} value={usuario}
-              onChange={(e) => { setUsuario(e.target.value); setError(false); }}
+          <Campo label="Email">
+            <input autoFocus type="email" className={inputCls} value={email}
+              onChange={(e) => { setEmail(e.target.value); setError(""); }}
               onKeyDown={alPresionarEnter} />
           </Campo>
           <Campo label="Contraseña">
             <div className="relative">
               <input type={mostrarClave ? "text" : "password"} className={inputCls + " pr-10"} value={clave}
-                onChange={(e) => { setClave(e.target.value); setError(false); }}
+                onChange={(e) => { setClave(e.target.value); setError(""); }}
                 onKeyDown={alPresionarEnter} />
               <button
                 type="button"
@@ -63,11 +65,11 @@ function PantallaLogin({ onIngresar }) {
         </div>
         {error && (
           <p className="mt-3 rounded px-3 py-2 text-center text-xs font-medium" style={{ backgroundColor: ROJO_BG, color: ROJO }}>
-            Usuario o contraseña incorrectos
+            {error}
           </p>
         )}
-        <button type="button" onClick={intentar} className="mt-4 w-full rounded py-2 text-sm font-semibold text-white" style={{ backgroundColor: NAVY }}>
-          Ingresar
+        <button type="button" onClick={intentar} disabled={cargando} className="mt-4 w-full rounded py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: NAVY }}>
+          {cargando ? "Ingresando…" : "Ingresar"}
         </button>
       </div>
     </div>
@@ -75,3 +77,4 @@ function PantallaLogin({ onIngresar }) {
 }
 
 export default PantallaLogin;
+
