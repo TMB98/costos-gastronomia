@@ -32,15 +32,15 @@ function PantallaLogin({ onIngresar }) {
   const alPresionarEnter = (e) => { if (e.key === "Enter") intentar(); };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 px-4">
-      <div className="w-full max-w-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-lg">
-        <div className="mb-5 text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full text-2xl" style={{ backgroundColor: NAVY }}>
-            🔒
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-100 via-gray-100 to-blue-50 px-4 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
+      <div className="w-full max-w-sm overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl">
+        <div className="h-1.5" style={{ backgroundColor: NAVY }} />
+        <div className="p-7">
+          <div className="mb-6 text-center">
+            <h1 className="text-3xl font-extrabold tracking-tight" style={{ color: NAVY_TEXT }}>La Nuna</h1>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Gestión gastronómica</p>
+            <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">Ingresá con tu cuenta para continuar</p>
           </div>
-          <h1 className="text-lg font-bold" style={{ color: NAVY_TEXT }}>Control de costos gastronómico</h1>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Ingresá con tu cuenta para continuar</p>
-        </div>
         <div className="space-y-3">
           <Campo label="Email">
             <input autoFocus type="email" className={inputCls} value={email}
@@ -71,6 +71,7 @@ function PantallaLogin({ onIngresar }) {
         <button type="button" onClick={intentar} disabled={cargando} className="mt-4 w-full rounded py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: NAVY }}>
           {cargando ? "Ingresando…" : "Ingresar"}
         </button>
+        </div>
       </div>
     </div>
   );
