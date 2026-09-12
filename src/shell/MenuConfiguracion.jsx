@@ -75,8 +75,6 @@ function MenuConfiguracion({ data, setData, toast, setConfirmar, oscuro, setOscu
     { id: "clave", icon: User, label: "Cambiar mi contraseña", onClick: () => { setClaveAbierto(true); setAbierto(false); } },
     { id: "tema", icon: oscuro ? Sun : Moon, label: oscuro ? "Modo día" : "Modo noche", onClick: () => { setOscuro(!oscuro); setAbierto(false); } },
     { id: "descargar", icon: Receipt, label: "Descargar respaldo", onClick: descargarRespaldo },
-    ...(puedeEditar ? [{ id: "restaurar", icon: RotateCcw, label: "Restaurar ejemplo", onClick: restaurarEjemplo }] : []),
-    { id: "salir", icon: LogOut, label: "Cerrar sesión", onClick: cerrarSesion },
   ];
 
   return (
@@ -116,14 +114,28 @@ function MenuConfiguracion({ data, setData, toast, setConfirmar, oscuro, setOscu
                 );
               })}
               {puedeEditar && (
-                <li>
-                  <label className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <Upload size={15} />
-                    Restaurar respaldo
-                    <input type="file" accept="application/json" className="hidden" onChange={restaurarRespaldo} />
-                  </label>
-                </li>
+                <>
+                  <li>
+                    <label className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <Upload size={15} />
+                      Restaurar respaldo
+                      <input type="file" accept="application/json" className="hidden" onChange={restaurarRespaldo} />
+                    </label>
+                  </li>
+                  <li>
+                    <button onClick={restaurarEjemplo} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <RotateCcw size={15} /> Restaurar ejemplo
+                    </button>
+                  </li>
+                </>
               )}
+            </ul>
+            <ul className="border-t border-gray-100 py-1 dark:border-gray-700">
+              <li>
+                <button onClick={cerrarSesion} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <LogOut size={15} /> Cerrar sesión
+                </button>
+              </li>
             </ul>
             <p className="border-t border-gray-100 px-4 py-2 text-center text-[11px] text-gray-400 dark:border-gray-700 dark:text-gray-500">
               Versión {APP_VERSION}
