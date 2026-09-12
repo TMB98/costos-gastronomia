@@ -1,5 +1,16 @@
 const NOVEDADES = [
   {
+    version: "1.16",
+    fecha: "12/09/2026",
+    items: [
+      "La app ahora se llama \"La Nuna\" — le dimos una vuelta a la marca en el título y en la pantalla de inicio de sesión.",
+      "Ya podés cambiar tu propia contraseña sin depender de nadie más: menú ⚙️ → \"Cambiar mi contraseña\".",
+      "El login ahora es con tu email (antes era con un usuario) — más seguro y a prueba de errores de tipeo.",
+      "Al cargar un ingrediente nuevo, si ya existe uno con el mismo nombre (aunque esté escrito distinto), te avisamos antes de crear un duplicado.",
+      "Reordenamos un par de opciones del menú ⚙️ para que estén más agrupadas por tipo (respaldos juntos, \"Cerrar sesión\" al final).",
+    ],
+  },
+  {
     version: "1.15",
     fecha: "07/09/2026",
     items: [
