@@ -10,7 +10,7 @@ import Formula from "../../components/Formula.jsx";
 import BarraH from "../../components/graficos/BarraH.jsx";
 import LineaSVG from "../../components/graficos/LineaSVG.jsx";
 
-function SeccionReportes({ data, cfg, setCfg, platosCalc, totalCF, totales, cfPorPorcion, setData, mapIng }) {
+function SeccionReportes({ data, cfg, setCfg, platosCalc, totalCF, totales, cfPorPorcion, onActualizarBenchmark, mapIng }) {
   const conMargen = platosCalc.filter((p) => p.margen != null);
   const verdes = conMargen.filter((p) => p.margen > 65).length;
   const amarillos = conMargen.filter((p) => p.margen >= 40 && p.margen <= 65).length;
@@ -60,11 +60,7 @@ function SeccionReportes({ data, cfg, setCfg, platosCalc, totalCF, totales, cfPo
     b3: totales.ingresos > 0 ? (laboral / totales.ingresos) * 100 : null,
     b4: totales.ingresos > 0 ? (alquiler / totales.ingresos) * 100 : null,
   };
-  const setBench = (id, k, v) =>
-    setData((d) => ({
-      ...d,
-      config: { ...d.config, benchmarks: d.config.benchmarks.map((b) => (b.id === id ? { ...b, [k]: Number(v) } : b)) },
-    }));
+  const setBench = (id, k, v) => onActualizarBenchmark(id, k, v);
 
   /* Evolución de costos: costo de la carta valuado con precios históricos */
   const evolucion = useMemo(() => {
