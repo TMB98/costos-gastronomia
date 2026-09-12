@@ -26,6 +26,13 @@ export async function cerrarSesion() {
   await supabase.auth.signOut();
 }
 
+// Cambia la contraseña del usuario actualmente logueado. Supabase ya exige
+// estar autenticado para esto — no hace falta reingresar la contraseña vieja.
+export async function cambiarPropiaClave(nuevaClave) {
+  const { error } = await supabase.auth.updateUser({ password: nuevaClave });
+  if (error) throw error;
+}
+
 export async function obtenerSesion() {
   const { data } = await supabase.auth.getSession();
   return data.session;
