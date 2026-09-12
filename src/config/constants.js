@@ -48,7 +48,7 @@ export const CAT_COSTO_DEFAULT = [
 ];
 export const FRECUENCIAS = { mensual: 1, trimestral: 3, anual: 12 };
 
-export const APP_VERSION = "1.15";
+export const APP_VERSION = "1.16";
 
 // Clase compartida para todos los inputs/selects de formularios (48 usos en
 // el monolito original) — un solo lugar para el estilo base de un campo.
