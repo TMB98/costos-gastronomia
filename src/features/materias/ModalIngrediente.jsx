@@ -1,17 +1,29 @@
-import React, { useState } from "react";
-import { inputCls, LISTA_UNIDADES } from "../../config/constants.js";
+import React, { useState, useMemo } from "react";
+import { inputCls, LISTA_UNIDADES, AMARILLO, AMARILLO_BG } from "../../config/constants.js";
 import { hoyISO, uid } from "../../lib/formato.js";
-import { Check } from "../../components/icons.jsx";
+import { Check, AlertTriangle } from "../../components/icons.jsx";
 import Modal from "../../components/Modal.jsx";
 import Campo from "../../components/Campo.jsx";
 import Boton from "../../components/Boton.jsx";
 import SelectConAgregar from "../../components/SelectConAgregar.jsx";
 
-function ModalIngrediente({ inicial, categorias, onAgregarCategoria, onGuardar, onClose }) {
+// Compara nombres "a ojo": ignora mayúsculas/minúsculas y espacios de más.
+// No detecta sinónimos ni variantes de marca — eso queda para cuando exista
+// un catálogo maestro de verdad (ver ARCHITECTURE.md / pendientes).
+const normalizar = (s) => (s || "").trim().toLowerCase().replace(/\s+/g, " ");
+
+function ModalIngrediente({ inicial, categorias, existentes, onAgregarCategoria, onGuardar, onClose, onVerExistente }) {
   const [f, setF] = useState(
     inicial || { nombre: "", categoria: "Secos", unidad: "kg", precio: "", proveedor: "", fechaPrecio: hoyISO(), historial: [] }
   );
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+
+  const duplicado = useMemo(() => {
+    const nombreNorm = normalizar(f.nombre);
+    if (!nombreNorm || !existentes) return null;
+    return existentes.find((i) => i.id !== f.id && normalizar(i.nombre) === nombreNorm) || null;
+  }, [f.nombre, f.id, existentes]);
+
   const guardar = () => {
     if (!f.nombre.trim()) return;
     const precio = f.precio === "" || f.precio == null ? null : Number(f.precio);
@@ -33,6 +45,17 @@ function ModalIngrediente({ inicial, categorias, onAgregarCategoria, onGuardar, 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Campo label="Nombre" className="sm:col-span-2">
           <input className={inputCls} value={f.nombre} onChange={(e) => set("nombre", e.target.value)} placeholder="Harina 000" />
+          {duplicado && (
+            <div className="mt-2 flex flex-wrap items-center gap-2 rounded px-3 py-2 text-xs" style={{ backgroundColor: AMARILLO_BG, color: AMARILLO }}>
+              <AlertTriangle size={14} className="shrink-0" />
+              <span>Ya existe <b>"{duplicado.nombre}"</b> — ¿es el mismo producto?</span>
+              {onVerExistente && (
+                <button type="button" onClick={() => onVerExistente(duplicado)} className="font-semibold underline">
+                  Ver ese ingrediente
+                </button>
+              )}
+            </div>
+          )}
         </Campo>
         <Campo label="Categoría">
           <SelectConAgregar value={f.categoria} onChange={(v) => set("categoria", v)} opciones={categorias} onAgregarOpcion={onAgregarCategoria} />
