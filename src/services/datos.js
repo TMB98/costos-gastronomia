@@ -23,7 +23,7 @@ export async function obtenerMembership(userId) {
    chico). Las escrituras, en cambio, van todas targeted abajo.
    ══════════════════════════════════════════════════════════════ */
 export async function cargarTodo(companyId) {
-  const [ing, hist, pl, pi, cf, ped, vi, cv, cat, bench, cfg] = await Promise.all([
+  const [ing, hist, pl, pi, cf, ped, vi, cv, cat, bench, cfg, perfilesData] = await Promise.all([
     supabase.from("ingredientes").select("*").eq("company_id", companyId),
     supabase.from("historial_precios").select("ingrediente_id, fecha, precio"),
     supabase.from("platos").select("*").eq("company_id", companyId),
@@ -31,14 +31,20 @@ export async function cargarTodo(companyId) {
     supabase.from("costos_fijos").select("*").eq("company_id", companyId),
     supabase.from("pedidos").select("*").eq("company_id", companyId),
     supabase.from("venta_items").select("*"),
-    supabase.from("correcciones_ventas").select("*, perfiles(nombre)").eq("company_id", companyId),
+    supabase.from("correcciones_ventas").select("*").eq("company_id", companyId),
     supabase.from("categorias").select("tipo, nombre").eq("company_id", companyId),
     supabase.from("benchmarks").select("*").eq("company_id", companyId),
     supabase.from("configuracion").select("*").eq("company_id", companyId).single(),
+    supabase.from("perfiles").select("id, nombre"),
   ]);
-  for (const r of [ing, hist, pl, pi, cf, ped, vi, cv, cat, bench, cfg]) {
+  for (const r of [ing, hist, pl, pi, cf, ped, vi, cv, cat, bench, cfg, perfilesData]) {
     if (r.error) throw r.error;
   }
+
+  // El nombre de quién hizo una corrección vive en "perfiles" — no hay una
+  // relación directa entre esa tabla y "correcciones_ventas" que Supabase
+  // pueda cruzar sola, así que se busca aparte y se cruza acá a mano.
+  const nombrePorUsuarioId = Object.fromEntries(perfilesData.data.map((p) => [p.id, p.nombre]));
 
   const historialPorIng = {};
   hist.data.forEach((h) => { (historialPorIng[h.ingrediente_id] ??= []).push({ fecha: h.fecha, precio: h.precio }); });
@@ -70,7 +76,7 @@ export async function cargarTodo(companyId) {
   );
 
   const correccionesVentas = cv.data.map((c) => ({
-    id: c.id, fecha: c.fecha, hora: c.hora, usuario: c.perfiles?.nombre || "—",
+    id: c.id, fecha: c.fecha, hora: c.hora, usuario: nombrePorUsuarioId[c.usuario_id] || "—",
     pedidoId: c.pedido_id, motivo: c.motivo, items: c.items_snapshot, total: c.total,
   }));
 
