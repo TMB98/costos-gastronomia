@@ -457,8 +457,8 @@ function App({ usuarioActual, onCerrarSesion }) {
       </main>
 
       {modal?.tipo === "ing" && (
-        <ModalIngrediente inicial={modal.item} categorias={cfg.categoriasIngredientes || CAT_ING}
-          onAgregarCategoria={agregarCategoriaIngrediente} onGuardar={guardarIng} onClose={() => setModal(null)} />
+        <ModalIngrediente key={modal.item?.id || "nuevo"} inicial={modal.item} categorias={cfg.categoriasIngredientes || CAT_ING} existentes={data.ingredientes}
+          onAgregarCategoria={agregarCategoriaIngrediente} onGuardar={guardarIng} onClose={() => setModal(null)} onVerExistente={(ing) => setModal({ tipo: "ing", item: ing })} />
       )}
       {modal?.tipo === "plato" && (
         <ModalPlato inicial={modal.item} ingredientes={data.ingredientes} config={cfg}
