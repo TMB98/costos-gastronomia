@@ -2,14 +2,16 @@ import React, { useState, useContext } from "react";
 import { NAVY_TEXT, APP_VERSION } from "../config/constants.js";
 import { hoyISO } from "../lib/formato.js";
 import datosDemo from "../lib/datosDemo.js";
-import { BookOpen, Sun, Moon, Receipt, RotateCcw, LogOut, Settings, Lock, Upload } from "../components/icons.jsx";
+import { BookOpen, Sun, Moon, Receipt, RotateCcw, LogOut, Settings, Lock, Upload, User } from "../components/icons.jsx";
 import ConTooltip from "../components/ConTooltip.jsx";
 import ModalManual from "./ModalManual.jsx";
+import ModalCambiarClave from "./ModalCambiarClave.jsx";
 import { usePuedeEditar, RolContext } from "../auth/usuarios.js";
 
 function MenuConfiguracion({ data, setData, toast, setConfirmar, oscuro, setOscuro, usuarioActual, onCerrarSesion }) {
   const [abierto, setAbierto] = useState(false);
   const [manualAbierto, setManualAbierto] = useState(false);
+  const [claveAbierto, setClaveAbierto] = useState(false);
   const puedeEditar = usePuedeEditar();
   const rol = useContext(RolContext);
 
@@ -70,6 +72,7 @@ function MenuConfiguracion({ data, setData, toast, setConfirmar, oscuro, setOscu
 
   const opciones = [
     { id: "manual", icon: BookOpen, label: "Manual de usuario", onClick: () => { setManualAbierto(true); setAbierto(false); } },
+    { id: "clave", icon: User, label: "Cambiar mi contraseña", onClick: () => { setClaveAbierto(true); setAbierto(false); } },
     { id: "tema", icon: oscuro ? Sun : Moon, label: oscuro ? "Modo día" : "Modo noche", onClick: () => { setOscuro(!oscuro); setAbierto(false); } },
     { id: "descargar", icon: Receipt, label: "Descargar respaldo", onClick: descargarRespaldo },
     ...(puedeEditar ? [{ id: "restaurar", icon: RotateCcw, label: "Restaurar ejemplo", onClick: restaurarEjemplo }] : []),
@@ -129,6 +132,7 @@ function MenuConfiguracion({ data, setData, toast, setConfirmar, oscuro, setOscu
         </>
       )}
       {manualAbierto && <ModalManual onClose={() => setManualAbierto(false)} />}
+      {claveAbierto && <ModalCambiarClave onClose={() => setClaveAbierto(false)} />}
     </div>
   );
 }
