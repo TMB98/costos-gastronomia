@@ -6,11 +6,15 @@ import { supabase } from "./supabase.js";
 export async function obtenerMembership(userId) {
   const { data, error } = await supabase
     .from("memberships")
-    .select("company_id, rol, perfiles(nombre)")
+    .select("company_id, rol")
     .eq("user_id", userId)
     .single();
   if (error) throw error;
-  return { companyId: data.company_id, rol: data.rol, nombre: data.perfiles?.nombre };
+  // El nombre vive en "perfiles" — se busca aparte, no hay una relación
+  // directa entre "memberships" y "perfiles" que Supabase pueda cruzar sola
+  // (las dos apuntan a auth.users, pero no entre sí).
+  const { data: perfil } = await supabase.from("perfiles").select("nombre").eq("id", userId).maybeSingle();
+  return { companyId: data.company_id, rol: data.rol, nombre: perfil?.nombre };
 }
 
 /* ══════════════════════════════════════════════════════════════
