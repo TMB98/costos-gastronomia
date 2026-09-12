@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { usePuedeVentas, usePuedeEditar, useEsAdmin } from "../../auth/usuarios.js";
 import { NAVY, NAVY_TEXT, AMARILLO_TEXT, VERDE, VERDE_BG, inputCls } from "../../config/constants.js";
-import { hoyISO, uid, $, $0, fechaCorta, nf0 } from "../../lib/formato.js";
+import { hoyISO, $, $0, fechaCorta, nf0 } from "../../lib/formato.js";
 import { Plus, X, Check, AlertTriangle, Trash2, TrendingUp } from "../../components/icons.jsx";
 import AyudaSeccion from "../../components/AyudaSeccion.jsx";
 import KPI from "../../components/KPI.jsx";
@@ -11,7 +11,7 @@ import Boton from "../../components/Boton.jsx";
 import ConTooltip from "../../components/ConTooltip.jsx";
 import Chip from "../../components/Chip.jsx";
 
-function SeccionVentas({ data, setData, platosCalc, borrar, borrarPedidoVenta, toast, cfg, setCfg, setModal, platoRecienCreado, limpiarPlatoRecienCreado, totalCF }) {
+function SeccionVentas({ data, platosCalc, borrar, borrarPedidoVenta, onRegistrarVenta, onActualizarUnidadesMasivo, toast, cfg, setCfg, setModal, platoRecienCreado, limpiarPlatoRecienCreado, totalCF }) {
   const puedeVentas = usePuedeVentas();
   const puedeEditar = usePuedeEditar();
   const esAdmin = useEsAdmin();
@@ -78,23 +78,7 @@ function SeccionVentas({ data, setData, platosCalc, borrar, borrarPedidoVenta, t
       toast("⚠️ Todavía no agregaste ningún ítem al pedido");
       return;
     }
-    const pedidoId = uid("ped");
-    const nuevasVentas = carrito.map((it) => ({
-      id: uid("v"),
-      pedidoId,
-      fecha,
-      medioPago,
-      platoId: it.platoId,
-      platoNombre: it.platoNombre,
-      cantidad: it.cantidad,
-      // Guardamos el precio y costo vigentes en el momento de la venta, para que
-      // si mañana cambiás un precio, las ventas viejas no se recalculen solas.
-      precioUnitario: it.precioUnitario,
-      costoUnitario: it.costoUnitario,
-      notas: "",
-    }));
-    setData((d) => ({ ...d, ventas: [...nuevasVentas, ...(d.ventas || [])] }));
-    toast(`✅ Venta registrada — ${carrito.length} ítem${carrito.length > 1 ? "s" : ""}, total ${$(totalCarrito)}`);
+    onRegistrarVenta(fecha, medioPago, carrito);
     setCarrito([]);
   };
 
@@ -173,9 +157,8 @@ function SeccionVentas({ data, setData, platosCalc, borrar, borrarPedidoVenta, t
   const usarEnPricing = () => {
     if (diasConDatos === 0) { toast("⚠️ No hay ventas registradas todavía"); return; }
     const factor = 30 / diasConDatos;
-    const nuevasUnidades = { ...cfg.unidades };
-    ranking8020.forEach((r) => { nuevasUnidades[r.platoId] = Math.round(r.unidades * factor); });
-    setCfg("unidades", nuevasUnidades);
+    const cambios = ranking8020.map((r) => ({ platoId: r.platoId, unidades: Math.round(r.unidades * factor) }));
+    onActualizarUnidadesMasivo(cambios);
     toast("📈 Estimaciones de Pricing actualizadas con ventas reales");
   };
 
