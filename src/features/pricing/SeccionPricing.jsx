@@ -11,7 +11,7 @@ import Campo from "../../components/Campo.jsx";
 import Formula from "../../components/Formula.jsx";
 import Chip from "../../components/Chip.jsx";
 
-function SeccionPricing({ data, cfg, platosCalc, totalCF, totales, cfPorPorcion, prorrateoSinDatos, setCfg, setData, toast, setConfirmar }) {
+function SeccionPricing({ data, cfg, platosCalc, totalCF, totales, cfPorPorcion, prorrateoSinDatos, setCfg, onCambiarUnidadEstimada, onAplicarPreciosPlatosMasivo, toast, setConfirmar }) {
   const puedeEditar = usePuedeEditar();
   const [sel, setSel] = useState(platosCalc[0]?.id || null);
   const plato = platosCalc.find((p) => p.id === sel) || platosCalc[0];
@@ -54,19 +54,16 @@ function SeccionPricing({ data, cfg, platosCalc, totalCF, totales, cfPorPorcion,
     setConfirmar({
       msg: `Vas a actualizar el precio de ${cantidad} plato${cantidad > 1 ? "s" : ""} que hoy ${cantidad > 1 ? "están" : "está"} perdiendo plata, llevándolo${cantidad > 1 ? "s" : ""} al margen objetivo (${cfg.margenObjetivo}%). Podés revisar los precios nuevos en la pestaña Platos después.`,
       accion: () => {
-        setData((d) => ({
-          ...d,
-          platos: d.platos.map((raw) => {
-            const p = platosPerdiendoPlata.find((c) => c.id === raw.id);
-            if (!p) return raw;
+        const cambios = platosPerdiendoPlata
+          .map((p) => {
             const real = p.costoPorcion + cfPorPorcion(p);
             const nuevoNeto = sugerido(real, cfg.margenObjetivo);
-            if (nuevoNeto == null) return raw; // margen objetivo >= 100%, no se puede calcular
+            if (nuevoNeto == null) return null; // margen objetivo >= 100%, no se puede calcular
             const nuevoPrecioVenta = cfg.preciosIncluyenIVA ? conIVA(nuevoNeto, cfg) : nuevoNeto;
-            return { ...raw, precioVenta: Math.round(nuevoPrecioVenta * 100) / 100 };
-          }),
-        }));
-        toast(`✅ Precio actualizado en ${cantidad} plato${cantidad > 1 ? "s" : ""}`);
+            return { platoId: p.id, precioVenta: Math.round(nuevoPrecioVenta * 100) / 100 };
+          })
+          .filter(Boolean);
+        onAplicarPreciosPlatosMasivo(cambios);
       },
     });
   };
@@ -147,7 +144,7 @@ function SeccionPricing({ data, cfg, platosCalc, totalCF, totales, cfPorPorcion,
               <label key={p.id} className="block">
                 <span className="mb-1 block truncate text-xs text-gray-600 dark:text-gray-400" title={p.nombre}>{p.nombre}</span>
                 <input type="number" min="0" className={inputCls} value={cfg.unidades[p.id] ?? 0} disabled={!puedeEditar}
-                  onChange={(e) => setCfg("unidades", { ...cfg.unidades, [p.id]: Number(e.target.value) })} />
+                  onChange={(e) => onCambiarUnidadEstimada(p.id, Number(e.target.value))} />
               </label>
             ))}
           </div>
