@@ -318,7 +318,10 @@ function App({ usuarioActual, onCerrarSesion }) {
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       <header style={{ backgroundColor: NAVY }} className="relative px-5 py-3.5 text-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-          <h1 className="text-base font-bold tracking-tight sm:text-lg">Control de costos gastronómico</h1>
+          <h1 className="flex items-baseline gap-2 leading-none">
+            <span className="text-lg font-extrabold tracking-tight sm:text-xl">La Nuna</span>
+            <span className="hidden text-xs font-medium text-blue-200 sm:inline">Gestión gastronómica</span>
+          </h1>
           <div className="flex items-center gap-1">
             <ConTooltip texto="Buscar (Ctrl+K)">
               <button
