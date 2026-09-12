@@ -1,9 +1,18 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, useContext } from "react";
 import { usePuedeEditar, usePuedeVentas, RolContext } from "./auth/usuarios.js";
-import { uid, $, hoyISO } from "./lib/formato.js";
+import { uid } from "./lib/formato.js";
 import { calcPlato, netoDe, semaforo, cfMensual } from "./lib/calculos.js";
-import datosDemo from "./lib/datosDemo.js";
-import { dbConfigurada, dbLeer, dbGuardar, STORAGE_KEY, STORAGE_KEY_BACKUP } from "./services/supabase.js";
+import {
+  cargarTodo,
+  crearIngrediente as dbCrearIngrediente, actualizarIngrediente as dbActualizarIngrediente, borrarIngrediente as dbBorrarIngrediente,
+  aplicarPreciosMasivo as dbAplicarPreciosMasivo,
+  crearPlato as dbCrearPlato, actualizarPlato as dbActualizarPlato, borrarPlato as dbBorrarPlato,
+  actualizarUnidadesEstimadas as dbActualizarUnidadesEstimadas, actualizarUnidadesMasivo as dbActualizarUnidadesMasivo,
+  aplicarPreciosPlatosMasivo as dbAplicarPreciosPlatosMasivo,
+  crearCostoFijo as dbCrearCostoFijo, actualizarCostoFijo as dbActualizarCostoFijo, borrarCostoFijo as dbBorrarCostoFijo,
+  registrarPedido as dbRegistrarPedido, borrarPedido as dbBorrarPedido, deshacerBorradoPedido as dbDeshacerBorradoPedido,
+  agregarCategoria as dbAgregarCategoria, actualizarBenchmark as dbActualizarBenchmark, actualizarConfiguracion as dbActualizarConfiguracion,
+} from "./services/datos.js";
 import {
   CAT_ING, CAT_PLATO, CAT_COSTO_DEFAULT,
   NAVY, NAVY_TEXT, NAVY_BG_SOFT, ROJO_TEXT, VERDE, VERDE_BG, AMARILLO, AMARILLO_BG, AMARILLO_TEXT,
@@ -29,13 +38,13 @@ import SeccionVentas from "./features/ventas/SeccionVentas.jsx";
 import SeccionPricing from "./features/pricing/SeccionPricing.jsx";
 import SeccionReportes from "./features/reportes/SeccionReportes.jsx";
 
-function App({ usuarioActual, onCerrarSesion }) {
+function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
   const puedeEditar = usePuedeEditar();
   const puedeVentas = usePuedeVentas();
   const rolActual = useContext(RolContext);
   const [data, setData] = useState(null);
   const [cargando, setCargando] = useState(true);
-  const [persistencia, setPersistencia] = useState("memoria");
+  const [errorCarga, setErrorCarga] = useState(null);
   const [tab, setTab] = useState("materias");
   const navScrollRef = useRef(null);
 
@@ -71,61 +80,41 @@ function App({ usuarioActual, onCerrarSesion }) {
     document.documentElement.classList.toggle("dark", temaOscuroActual);
   }, [temaOscuroActual]);
 
+  // Carga inicial: todo viene de las tablas relacionales, scoped a la
+  // empresa del usuario logueado. Ya no hay fallback a localStorage/demo acá
+  // — si algo falla, se lo decimos claro en vez de mostrar datos de mentira.
   useEffect(() => {
-    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
-
+    if (!companyId) { setCargando(false); setErrorCarga("Tu cuenta no tiene una empresa asignada."); return; }
     (async () => {
-      if (dbConfigurada) {
-        try {
-          const remoto = await dbLeer();
-          if (remoto) { setData(remoto); setPersistencia("nube"); setCargando(false); return; }
-        } catch (e) { /* si falla la base, seguimos con lo que haya local */ }
-      }
       try {
-        const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY_BACKUP);
-        if (raw) { setData(JSON.parse(raw)); setPersistencia(dbConfigurada ? "local" : "guardado"); }
-        else { setData(datosDemo()); setPersistencia(dbConfigurada ? "local" : "guardado"); }
+        const datos = await cargarTodo(companyId);
+        setData(datos);
       } catch (e) {
-        setData(datosDemo());
-        setPersistencia("memoria");
+        setErrorCarga("No se pudieron cargar los datos. Probá recargar la página en un momento.");
+      } finally {
+        setCargando(false);
       }
-      setCargando(false);
     })();
-  }, []);
-
-  useEffect(() => {
-    if (cargando || !data) return;
-    const t = setTimeout(async () => {
-      const json = JSON.stringify(data);
-      try { localStorage.setItem(STORAGE_KEY, json); localStorage.setItem(STORAGE_KEY_BACKUP, json); } catch (e) {}
-
-      if (dbConfigurada) {
-        try {
-          const ok = await dbGuardar(data);
-          setPersistencia(ok ? "nube" : "local");
-        } catch (e) {
-          setPersistencia("local");
-        }
-        return;
-      }
-      try {
-        const relectura = localStorage.getItem(STORAGE_KEY);
-        setPersistencia(relectura === json ? "guardado" : "memoria");
-      } catch (e) {
-        setPersistencia("memoria");
-      }
-    }, 400);
-    return () => clearTimeout(t);
-  }, [data, cargando]);
+  }, [companyId]);
 
   const toast = useCallback((msg, accion) => {
     const id = uid("t");
     setToasts((t) => [...t, { id, msg, accion }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), accion ? 5000 : 2800);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), accion ? 6000 : 2800);
     return id;
   }, []);
 
-  const setCfg = (k, v) => setData((d) => ({ ...d, config: { ...d.config, [k]: v } }));
+  // setCfg sigue con la misma firma de siempre (así ninguna sección tiene que
+  // cambiar cómo la llama) — pero ahora, según qué campo cambie, decide solo
+  // a qué tabla de verdad tiene que escribir.
+  const setCfg = async (k, v) => {
+    setData((d) => ({ ...d, config: { ...d.config, [k]: v } })); // respuesta visual inmediata
+    try {
+      await dbActualizarConfiguracion(companyId, { [k]: v });
+    } catch (e) {
+      toast("❌ No se pudo guardar ese cambio de configuración");
+    }
+  };
 
   const mapIng = useMemo(() => (data ? Object.fromEntries(data.ingredientes.map((i) => [i.id, i])) : {}), [data]);
 
@@ -169,35 +158,58 @@ function App({ usuarioActual, onCerrarSesion }) {
     return totales.unidadesTot > 0 ? totalCF / totales.unidadesTot : 0;
   }, [data, totalCF, totales]);
 
-  if (cargando || !data) {
+  if (cargando) {
     return <div className="flex h-64 items-center justify-center text-sm text-gray-500 dark:text-gray-400">Cargando datos…</div>;
+  }
+  if (errorCarga || !data) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-3 px-4 text-center">
+        <p className="text-sm text-gray-700 dark:text-gray-300">{errorCarga || "No se pudieron cargar los datos."}</p>
+        <button onClick={() => window.location.reload()} className="text-sm font-medium text-blue-600 underline">Reintentar</button>
+      </div>
+    );
   }
   const cfg = data.config;
   const oscuro = temaOscuroActual;
   const setOscuro = (v) => setCfg("temaOscuro", v);
 
-  const guardarIng = (ing) => {
+  /* ---------- Materias primas ---------- */
+  const guardarIng = async (ing) => {
     if (!puedeEditar) return;
-    setData((d) => ({
-      ...d,
-      ingredientes: d.ingredientes.some((x) => x.id === ing.id)
-        ? d.ingredientes.map((x) => (x.id === ing.id ? ing : x))
-        : [...d.ingredientes, ing],
-    }));
-    setModal(null); toast("✅ Ingrediente guardado");
+    const esNuevo = !data.ingredientes.some((x) => x.id === ing.id);
+    try {
+      if (esNuevo) await dbCrearIngrediente(companyId, ing);
+      else await dbActualizarIngrediente(ing);
+      setData((d) => ({
+        ...d,
+        ingredientes: esNuevo ? [...d.ingredientes, ing] : d.ingredientes.map((x) => (x.id === ing.id ? ing : x)),
+      }));
+      setModal(null); toast("✅ Ingrediente guardado");
+    } catch (e) {
+      toast(`❌ No se pudo guardar: ${e.message || "error desconocido"}`);
+    }
   };
-  const guardarPlato = (p) => {
+
+  /* ---------- Platos ---------- */
+  const guardarPlato = async (p) => {
     if (!puedeEditar) return;
     const esNuevo = !data.platos.some((x) => x.id === p.id);
-    setData((d) => ({
-      ...d,
-      platos: d.platos.some((x) => x.id === p.id) ? d.platos.map((x) => (x.id === p.id ? p : x)) : [...d.platos, p],
-      config: { ...d.config, unidades: { ...d.config.unidades, [p.id]: d.config.unidades[p.id] ?? 0 } },
-    }));
-    if (esNuevo) setPlatoRecienCreado(p.id);
-    setModal(null); toast("✅ Plato guardado");
+    try {
+      if (esNuevo) await dbCrearPlato(companyId, { ...p, unidadesEstimadas: 0 });
+      else await dbActualizarPlato(p);
+      setData((d) => ({
+        ...d,
+        platos: esNuevo ? [...d.platos, p] : d.platos.map((x) => (x.id === p.id ? p : x)),
+        config: { ...d.config, unidades: { ...d.config.unidades, [p.id]: d.config.unidades[p.id] ?? 0 } },
+      }));
+      if (esNuevo) setPlatoRecienCreado(p.id);
+      setModal(null); toast("✅ Plato guardado");
+    } catch (e) {
+      toast(`❌ No se pudo guardar: ${e.message || "error desconocido"}`);
+    }
   };
-  const duplicarPlato = (p) => {
+
+  const duplicarPlato = async (p) => {
     if (!puedeEditar) return;
     const nuevoId = uid("p");
     const limpio = {
@@ -212,96 +224,235 @@ function App({ usuarioActual, onCerrarSesion }) {
       precioVenta: p.precioVenta,
       items: (p.items || []).map((it) => ({ id: uid("l"), ingId: it.ingId, cantidad: it.cantidad, unidad: it.unidad })),
     };
-    setData((d) => ({
-      ...d,
-      platos: [...d.platos, limpio],
-      config: { ...d.config, unidades: { ...d.config.unidades, [nuevoId]: 0 } },
-    }));
-    toast("📋 Plato duplicado — ajustá lo que necesites");
-    setModal({ tipo: "plato", item: limpio });
+    try {
+      await dbCrearPlato(companyId, { ...limpio, unidadesEstimadas: 0 });
+      setData((d) => ({
+        ...d,
+        platos: [...d.platos, limpio],
+        config: { ...d.config, unidades: { ...d.config.unidades, [nuevoId]: 0 } },
+      }));
+      toast("📋 Plato duplicado — ajustá lo que necesites");
+      setModal({ tipo: "plato", item: limpio });
+    } catch (e) {
+      toast(`❌ No se pudo duplicar: ${e.message || "error desconocido"}`);
+    }
   };
-  const guardarCF = (c) => {
-    if (!puedeEditar) return;
-    setData((d) => ({
-      ...d,
-      costosFijos: d.costosFijos.some((x) => x.id === c.id) ? d.costosFijos.map((x) => (x.id === c.id ? c : x)) : [...d.costosFijos, c],
-    }));
-    setModal(null); toast("✅ Costo fijo guardado");
+
+  const cambiarUnidadEstimada = async (platoId, unidades) => {
+    setData((d) => ({ ...d, config: { ...d.config, unidades: { ...d.config.unidades, [platoId]: unidades } } }));
+    try {
+      await dbActualizarUnidadesEstimadas(platoId, unidades);
+    } catch (e) {
+      toast("❌ No se pudo guardar la estimación de unidades");
+    }
   };
-  const borrar = (tipo, id, nombre) => {
+
+  const actualizarUnidadesMasivo = async (cambios) => {
+    // cambios: [{ platoId, unidades }]
+    try {
+      await dbActualizarUnidadesMasivo(cambios);
+      setData((d) => {
+        const nuevasUnidades = { ...d.config.unidades };
+        cambios.forEach((c) => { nuevasUnidades[c.platoId] = c.unidades; });
+        return { ...d, config: { ...d.config, unidades: nuevasUnidades } };
+      });
+    } catch (e) {
+      toast("❌ No se pudieron actualizar las estimaciones");
+    }
+  };
+
+  const aplicarPreciosPlatosMasivo = async (cambios) => {
+    // cambios: [{ platoId, precioVenta }]
+    try {
+      await dbAplicarPreciosPlatosMasivo(cambios);
+      setData((d) => ({
+        ...d,
+        platos: d.platos.map((p) => {
+          const c = cambios.find((x) => x.platoId === p.id);
+          return c ? { ...p, precioVenta: c.precioVenta } : p;
+        }),
+      }));
+      toast(`✅ Precio actualizado en ${cambios.length} plato${cambios.length > 1 ? "s" : ""}`);
+    } catch (e) {
+      toast("❌ No se pudieron actualizar los precios");
+    }
+  };
+
+  /* ---------- Costos fijos ---------- */
+  const guardarCF = async (c) => {
     if (!puedeEditar) return;
-    setData((d) => {
-      const lista = d[tipo];
-      const indice = lista.findIndex((x) => x.id === id);
-      if (indice === -1) return d;
-      const item = lista[indice];
-      const nuevaLista = lista.filter((x) => x.id !== id);
-      toast(`🗑️ "${nombre}" eliminado`, {
-        label: "Deshacer",
-        onClick: () => {
+    const esNuevo = !data.costosFijos.some((x) => x.id === c.id);
+    try {
+      if (esNuevo) await dbCrearCostoFijo(companyId, c);
+      else await dbActualizarCostoFijo(c);
+      setData((d) => ({
+        ...d,
+        costosFijos: esNuevo ? [...d.costosFijos, c] : d.costosFijos.map((x) => (x.id === c.id ? c : x)),
+      }));
+      setModal(null); toast("✅ Costo fijo guardado");
+    } catch (e) {
+      toast(`❌ No se pudo guardar: ${e.message || "error desconocido"}`);
+    }
+  };
+
+  /* ---------- Borrado genérico (ingredientes / platos / costos fijos) ----------
+     Cada sección sigue llamando borrar("ingredientes"|"platos"|"costosFijos", id,
+     nombre) exactamente igual que antes — acá adentro decidimos a qué tabla real
+     pega cada uno, y "Deshacer" ahora vuelve a crear la fila de verdad en la base,
+     no solo en la pantalla. */
+  const ACCIONES_BORRAR = {
+    ingredientes: { borrar: dbBorrarIngrediente, crear: (item) => dbCrearIngrediente(companyId, item) },
+    platos: { borrar: dbBorrarPlato, crear: (item) => dbCrearPlato(companyId, item) },
+    costosFijos: { borrar: dbBorrarCostoFijo, crear: (item) => dbCrearCostoFijo(companyId, item) },
+  };
+
+  const borrar = async (tipo, id, nombre) => {
+    if (!puedeEditar) return;
+    const lista = data[tipo];
+    const indice = lista.findIndex((x) => x.id === id);
+    if (indice === -1) return;
+    const item = lista[indice];
+    try {
+      await ACCIONES_BORRAR[tipo].borrar(id);
+    } catch (e) {
+      toast(`❌ ${e.message || "No se pudo borrar"}`);
+      return;
+    }
+    setData((d) => ({ ...d, [tipo]: d[tipo].filter((x) => x.id !== id) }));
+    toast(`🗑️ "${nombre}" eliminado`, {
+      label: "Deshacer",
+      onClick: async () => {
+        try {
+          await ACCIONES_BORRAR[tipo].crear(item);
           setData((d2) => {
             const listaActual = [...d2[tipo]];
             listaActual.splice(Math.min(indice, listaActual.length), 0, item);
             return { ...d2, [tipo]: listaActual };
           });
-        },
-      });
-      return { ...d, [tipo]: nuevaLista };
+        } catch (e) {
+          toast("❌ No se pudo deshacer — puede que ya lo hayas creado de nuevo");
+        }
+      },
     });
   };
 
-  const borrarPedidoVenta = (pedidoId, motivo) => {
+  /* ---------- Ventas ---------- */
+  const registrarVenta = async (fecha, medioPago, items) => {
     if (!puedeVentas) return;
-    setData((d) => {
-      const itemsBorrados = (d.ventas || []).filter((v) => (v.pedidoId || v.id) === pedidoId);
-      if (itemsBorrados.length === 0) return d;
-      const nuevasVentas = (d.ventas || []).filter((v) => (v.pedidoId || v.id) !== pedidoId);
-      const total = itemsBorrados.reduce((s, v) => s + v.cantidad * v.precioUnitario, 0);
-      const registro = {
-        id: uid("corr"),
-        fecha: hoyISO(),
-        hora: new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false }),
-        usuario: usuarioActual || "—",
-        pedidoId,
-        motivo: motivo?.trim() || "",
-        items: itemsBorrados.map((v) => ({ platoNombre: v.platoNombre, cantidad: v.cantidad, precioUnitario: v.precioUnitario })),
-        total,
-      };
-      toast(`🗑️ Venta eliminada (${$(total)})`, {
-        label: "Deshacer",
-        onClick: () => {
+    const pedidoId = uid("ped");
+    const nuevasVentas = items.map((it) => ({
+      id: uid("v"), pedidoId, fecha, medioPago,
+      platoId: it.platoId, platoNombre: it.platoNombre, cantidad: it.cantidad,
+      precioUnitario: it.precioUnitario, costoUnitario: it.costoUnitario, notas: "",
+    }));
+    try {
+      await dbRegistrarPedido(companyId, pedidoId, fecha, medioPago, nuevasVentas);
+      setData((d) => ({ ...d, ventas: [...nuevasVentas, ...(d.ventas || [])] }));
+      const total = items.reduce((s, it) => s + it.cantidad * it.precioUnitario, 0);
+      toast(`✅ Venta registrada — ${items.length} ítem${items.length > 1 ? "s" : ""}, total $${total.toLocaleString("es-AR")}`);
+    } catch (e) {
+      toast(`❌ No se pudo registrar la venta: ${e.message || "error desconocido"}`);
+    }
+  };
+
+  const borrarPedidoVenta = async (pedidoId, motivo) => {
+    if (!puedeVentas) return;
+    const itemsBorrados = (data.ventas || []).filter((v) => (v.pedidoId || v.id) === pedidoId);
+    if (itemsBorrados.length === 0) return;
+    const total = itemsBorrados.reduce((s, v) => s + v.cantidad * v.precioUnitario, 0);
+    let correccionId;
+    try {
+      correccionId = await dbBorrarPedido(pedidoId, motivo, usuarioId);
+    } catch (e) {
+      toast(`❌ No se pudo borrar la venta: ${e.message || "error desconocido"}`);
+      return;
+    }
+    const registro = {
+      id: correccionId,
+      fecha: itemsBorrados[0].fecha,
+      hora: new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false }),
+      usuario: usuarioActual || "—",
+      pedidoId,
+      motivo: motivo?.trim() || "",
+      items: itemsBorrados.map((v) => ({ platoNombre: v.platoNombre, cantidad: v.cantidad, precioUnitario: v.precioUnitario })),
+      total,
+    };
+    setData((d) => ({
+      ...d,
+      ventas: (d.ventas || []).filter((v) => (v.pedidoId || v.id) !== pedidoId),
+      correccionesVentas: [registro, ...(d.correccionesVentas || [])],
+    }));
+    toast(`🗑️ Venta eliminada ($${total.toLocaleString("es-AR")})`, {
+      label: "Deshacer",
+      onClick: async () => {
+        try {
+          await dbDeshacerBorradoPedido(correccionId);
           setData((d2) => ({
             ...d2,
             ventas: [...itemsBorrados, ...(d2.ventas || [])],
-            correccionesVentas: (d2.correccionesVentas || []).filter((c) => c.id !== registro.id),
+            correccionesVentas: (d2.correccionesVentas || []).filter((c) => c.id !== correccionId),
           }));
-        },
-      });
-      return { ...d, ventas: nuevasVentas, correccionesVentas: [registro, ...(d.correccionesVentas || [])] };
+        } catch (e) {
+          toast("❌ No se pudo deshacer");
+        }
+      },
     });
   };
 
-  const agregarCategoriaIngrediente = (nombre) =>
-    setCfg("categoriasIngredientes", [...(cfg.categoriasIngredientes || CAT_ING), nombre]);
-  const agregarCategoriaPlato = (nombre) =>
-    setCfg("categoriasPlatos", [...(cfg.categoriasPlatos || CAT_PLATO), nombre]);
-  const agregarCategoriaCosto = (nombre) =>
-    setCfg("categoriasCostos", [...(cfg.categoriasCostos || CAT_COSTO_DEFAULT), nombre]);
+  /* ---------- Categorías ---------- */
+  const agregarCategoriaIngrediente = async (nombre) => {
+    const nuevas = [...(cfg.categoriasIngredientes || CAT_ING), nombre];
+    setData((d) => ({ ...d, config: { ...d.config, categoriasIngredientes: nuevas } }));
+    try { await dbAgregarCategoria(companyId, "ingrediente", nombre); } catch (e) { toast("❌ No se pudo guardar la categoría"); }
+  };
+  const agregarCategoriaPlato = async (nombre) => {
+    const nuevas = [...(cfg.categoriasPlatos || CAT_PLATO), nombre];
+    setData((d) => ({ ...d, config: { ...d.config, categoriasPlatos: nuevas } }));
+    try { await dbAgregarCategoria(companyId, "plato", nombre); } catch (e) { toast("❌ No se pudo guardar la categoría"); }
+  };
+  const agregarCategoriaCosto = async (nombre) => {
+    const nuevas = [...(cfg.categoriasCostos || CAT_COSTO_DEFAULT), nombre];
+    setData((d) => ({ ...d, config: { ...d.config, categoriasCostos: nuevas } }));
+    try { await dbAgregarCategoria(companyId, "costo", nombre); } catch (e) { toast("❌ No se pudo guardar la categoría"); }
+  };
 
-  const aplicarPreciosMasivo = (valores, fecha) => {
+  /* ---------- Benchmarks (Reportería) ---------- */
+  const actualizarBenchmark = async (id, campo, valor) => {
     setData((d) => ({
       ...d,
-      ingredientes: d.ingredientes.map((i) => {
-        if (valores[i.id] === undefined) return i;
-        const nuevo = valores[i.id] === "" ? null : Number(valores[i.id]);
-        if (nuevo === i.precio) return i;
-        const hist = (i.historial || []).filter((h) => h.fecha !== fecha);
-        if (nuevo != null) hist.push({ fecha, precio: nuevo });
-        hist.sort((a, b) => a.fecha.localeCompare(b.fecha));
-        return { ...i, precio: nuevo, fechaPrecio: nuevo == null ? i.fechaPrecio : fecha, historial: hist };
-      }),
+      config: { ...d.config, benchmarks: d.config.benchmarks.map((b) => (b.id === id ? { ...b, [campo]: Number(valor) } : b)) },
     }));
-    setModal(null); toast("✅ Precios actualizados");
+    try {
+      await dbActualizarBenchmark(id, { [campo]: Number(valor) });
+    } catch (e) {
+      toast("❌ No se pudo guardar el benchmark");
+    }
+  };
+
+  /* ---------- Actualización masiva de precios de ingredientes ---------- */
+  const aplicarPreciosMasivo = async (valores, fecha) => {
+    const cambios = Object.entries(valores)
+      .filter(([id, v]) => data.ingredientes.some((i) => i.id === id) && v !== undefined)
+      .map(([ingredienteId, v]) => ({ ingredienteId, precio: v === "" ? null : Number(v) }))
+      .filter((c) => c.precio != null); // el RPC actualiza precio; los que se vacían del todo se dejan para edición manual
+    try {
+      if (cambios.length) await dbAplicarPreciosMasivo(cambios, fecha);
+      setData((d) => ({
+        ...d,
+        ingredientes: d.ingredientes.map((i) => {
+          if (valores[i.id] === undefined) return i;
+          const nuevo = valores[i.id] === "" ? null : Number(valores[i.id]);
+          if (nuevo === i.precio) return i;
+          const hist = (i.historial || []).filter((h) => h.fecha !== fecha);
+          if (nuevo != null) hist.push({ fecha, precio: nuevo });
+          hist.sort((a, b) => a.fecha.localeCompare(b.fecha));
+          return { ...i, precio: nuevo, fechaPrecio: nuevo == null ? i.fechaPrecio : fecha, historial: hist };
+        }),
+      }));
+      setModal(null); toast("✅ Precios actualizados");
+    } catch (e) {
+      toast(`❌ No se pudieron actualizar los precios: ${e.message || "error desconocido"}`);
+    }
   };
 
   const TABS = [
@@ -384,29 +535,9 @@ function App({ usuarioActual, onCerrarSesion }) {
             <b className="text-gray-700 dark:text-gray-200">{data.platos.length}</b>
             <span className="text-gray-500 dark:text-gray-400">productos</span>
           </button>
-          <span
-            className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium"
-            style={
-              persistencia === "nube"
-                ? { backgroundColor: VERDE_BG, color: VERDE }
-                : persistencia === "memoria"
-                ? { backgroundColor: AMARILLO_BG, color: AMARILLO }
-                : dbConfigurada
-                ? { backgroundColor: AMARILLO_BG, color: AMARILLO }
-                : { backgroundColor: "#f1f5f9", color: "#64748b" }
-            }
-          >
-            <span
-              className="h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{ backgroundColor: persistencia === "nube" ? VERDE : persistencia === "memoria" || dbConfigurada ? AMARILLO : "#94a3b8" }}
-            />
-            {persistencia === "nube"
-              ? "Guardado en la nube"
-              : persistencia === "memoria"
-              ? "Sin guardar — descargá un respaldo"
-              : dbConfigurada
-              ? "Sin conexión a la nube"
-              : "Guardado en este dispositivo"}
+          <span className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium" style={{ backgroundColor: VERDE_BG, color: VERDE }}>
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: VERDE }} />
+            Guardado en la nube
           </span>
           {usuarioActual && (
             <span className="flex items-center gap-1.5 rounded-md bg-gray-50 px-2.5 py-1 text-xs dark:bg-gray-700/50">
@@ -441,20 +572,23 @@ function App({ usuarioActual, onCerrarSesion }) {
           <SeccionFijos data={data} totalCF={totalCF} setModal={setModal} borrar={borrar} cfg={cfg} setCfg={setCfg} />
         )}
         {tab === "ventas" && (
-          <SeccionVentas data={data} setData={setData} platosCalc={platosCalc} borrar={borrar} borrarPedidoVenta={borrarPedidoVenta} toast={toast} cfg={cfg} setCfg={setCfg}
+          <SeccionVentas data={data} platosCalc={platosCalc} borrar={borrar} borrarPedidoVenta={borrarPedidoVenta}
+            onRegistrarVenta={registrarVenta} onActualizarUnidadesMasivo={actualizarUnidadesMasivo}
+            toast={toast} cfg={cfg} setCfg={setCfg}
             setModal={setModal} platoRecienCreado={platoRecienCreado} limpiarPlatoRecienCreado={() => setPlatoRecienCreado(null)} totalCF={totalCF} />
         )}
         {tab === "pricing" && (
           <SeccionPricing
             data={data} cfg={cfg} platosCalc={platosCalc} totalCF={totalCF} totales={totales}
-            cfPorPorcion={cfPorPorcion} prorrateoSinDatos={prorrateoSinDatos} setCfg={setCfg} setData={setData}
+            cfPorPorcion={cfPorPorcion} prorrateoSinDatos={prorrateoSinDatos} setCfg={setCfg}
+            onCambiarUnidadEstimada={cambiarUnidadEstimada} onAplicarPreciosPlatosMasivo={aplicarPreciosPlatosMasivo}
             toast={toast} setConfirmar={setConfirmar}
           />
         )}
         {tab === "reportes" && (
           <SeccionReportes
             data={data} cfg={cfg} setCfg={setCfg} platosCalc={platosCalc} totalCF={totalCF} totales={totales}
-            cfPorPorcion={cfPorPorcion} setData={setData} mapIng={mapIng}
+            cfPorPorcion={cfPorPorcion} onActualizarBenchmark={actualizarBenchmark} mapIng={mapIng}
           />
         )}
       </main>
