@@ -1,5 +1,13 @@
 const NOVEDADES = [
   {
+    version: "1.17",
+    fecha: "13/09/2026",
+    items: [
+      "Ahora podés ordenar las tablas de Materias primas y Costos fijos con un click en el título de la columna (Nombre, Categoría, Precio, etc.) — un click más para invertir el orden.",
+      "En Platos sumamos un selector \"Ordenar por\" (Nombre, Margen bruto, Precio de venta, Costo por porción), ya que ahí los platos se muestran como tarjetas y no como tabla.",
+    ],
+  },
+  {
     version: "1.16",
     fecha: "12/09/2026",
     items: [
