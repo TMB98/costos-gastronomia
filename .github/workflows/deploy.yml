@@ -27,7 +27,7 @@ jobs:
       - name: Instalar Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22 # jsdom 30 (usado por los tests) necesita Node 22+; con Node 20 los tests no arrancan
           cache: "npm"
 
       - name: Instalar dependencias
