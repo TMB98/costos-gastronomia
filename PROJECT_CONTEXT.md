@@ -74,13 +74,12 @@ Decisiones de diseño importantes:
 
 ## 8. Estrategia de testing
 
-- **191 tests, Vitest, todos pasando (191/191). Comando: `npm test`.** Verificado corriendo el repo real de GitHub el 13/09/2026.
-- `services/datos.js` (21 funciones): **0 tienen test directo hoy.** Pendiente real, no arrancado.
-- `App.jsx`: **no tiene test propio.** Solo lo cubre el test de integración (que monta la app entera, no testea sus ~17 handlers de negocio uno por uno).
+- **255 tests, Vitest, todos pasando (255/255). Comando: `npm test`.** `npm run validate` corre `npm test && npm run build` en un solo paso — usarlo antes de dar cualquier cambio por terminado.
+- `services/datos.js` (21 funciones): las 21 tienen test directo (`tests/services/datos.test.js`, 39 tests), mockeando el cliente de Supabase en el límite exacto donde `datos.js` lo importa.
+- `App.jsx`: tiene test propio (`tests/App.test.jsx`, 22 tests) cubriendo sus handlers de negocio principales — guardar/editar/borrar+deshacer en las 3 secciones de catálogo, ventas, categorías, benchmarks, precios masivos — con caminos de éxito y de error. Se monta `<App/>` directo (sin pasar por login), mockeando `services/datos.js` completo.
 - Tests de integración (`tests/integration/app.test.jsx`, 7 tests) montan la app completa (login → sesión → datos → navegación) mockeando en el límite de servicios: `services/supabase.js` (auth) y `services/datos.js` (todas las tablas) — no hay llamada real a Supabase en ningún test.
-- `npm run validate` **no existe todavía** — solo están `dev`, `build`, `preview`, `test` en `package.json`.
-- ⚠️ **El pipeline de GitHub Actions (`.github/workflows/deploy.yml`) nunca corre `npm test`.** Solo hace `npm run build` y publica. Hoy es posible pushear a `main` con tests rotos sin que nada avise. Esto hay que arreglarlo junto con `npm run validate`.
-- **Pendiente de esta etapa** (no arrancado): tests de `datos.js` (21 funciones), tests propios de `App.jsx` (sus handlers de negocio), E2E de un flujo completo (venta → impacta Reportería), comando `npm run validate` (build + tests), sumar un paso de test al workflow de GitHub Actions.
+- **E2E del flujo de negocio principal** (`tests/integration/venta-impacta-reporteria.test.jsx`, 2 tests): registrar una venta real → "Usar en Pricing" → confirma que los KPIs de Reportería (margen bruto promedio, facturación estimada) pasan de "sin datos" a números reales. Cubre la cadena completa Ventas → config.unidades → Pricing → Reportería, no cada paso por separado.
+- El pipeline de GitHub Actions (`.github/workflows/deploy.yml`) ahora corre `npm test` antes de `npm run build` — un test roto frena el deploy en vez de pasar desapercibido.
 
 ## 8.1 Corrección de discrepancias — sesión 13/09/2026
 
@@ -91,6 +90,10 @@ Al bajar el repo real de GitHub para retomar la Etapa 4, la suite tenía 16 test
 - `tests/services/supabase.test.js`: testeaba `dbLeer`/`dbGuardar` con `fetch` crudo mockeado. Reescrito contra las funciones reales (`iniciarSesion`, `cerrarSesion`, `cambiarPropiaClave`, `obtenerSesion`, `alCambiarSesion`, `obtenerPerfil`), mockeando `createClient` de `@supabase/supabase-js`.
 - `tests/integration/app.test.jsx`: mismo login viejo, hacía fallar los 6 tests en cadena. Reescrito con Auth real mockeada + `cargarTodo`/`obtenerMembership` mockeados (usa `datosDemo()` como dataset de prueba, que ya tiene la misma forma que devuelve `cargarTodo`). Se sumó un test nuevo (cuenta sin membership).
 - `tests/features/SeccionVentas.test.jsx`: un test asumía que el componente actualizaba `data` directo con `setData` (modelo viejo). Hoy `SeccionVentas` delega el guardado en la prop `onRegistrarVenta` (que vive en `App.jsx`) — reescrito contra ese contrato real, más un test nuevo para el caso en que falla el guardado (el carrito no se vacía).
+
+## 8.2 Bug real encontrado por los tests nuevos — sesión 13/09/2026
+
+En `src/features/pricing/SeccionPricing.jsx`, la tabla que compara el margen objetivo contra valores de referencia armaba la lista como `[cfg.margenObjetivo, 50, 40]` sin sacar duplicados. Si el margen objetivo del negocio ya era 50% o 40% (un valor perfectamente normal), la fila aparecía repetida en pantalla. Se corrigió con `[...new Set([...])]` y se sumó un test de regresión en `tests/features/SeccionPricing.test.jsx`.
 
 ## 9. Decisiones técnicas importantes a recordar
 
@@ -123,7 +126,7 @@ Materias primas (con historial de precios y actualización masiva) · Platos/rec
 | 1. Modularización (monolito → Vite) | ✅ Completa |
 | 2. Seguridad (Auth real, RLS, roles) | ✅ Completa |
 | 3. Base de datos relacional + concurrencia | ✅ Completa, en producción, verificada |
-| 4. QA/testing/robustez | 🟡 En curso — confirmado en GitHub: 191/191 tests pasando, código muerto limpiado, 4 tests obsoletos reescritos contra la arquitectura real, 2 bugs de robustez en producción (carrito de ventas, doble-click en modales — estos sí llegaron a GitHub). Falta lo más grande: tests de `datos.js` y `App.jsx` (nunca se subieron), E2E, `npm run validate`, sumar test al CI |
+| 4. QA/testing/robustez | ✅ Completa (13/09/2026) — 255/255 tests, `datos.js` y `App.jsx` con test propio, E2E venta→Reportería, `npm run validate`, CI corre tests antes de deployar. Pendiente menor: seguir sumando tests a medida que se agreguen features nuevas (no es un "terminado para siempre") |
 
 ## 14. Pendientes activos (sin arrancar), por tamaño
 
@@ -143,7 +146,6 @@ Materias primas (con historial de precios y actualización masiva) · Platos/rec
 - Rotar la clave de Supabase expuesta
 - Colores de marca (en stand by, decisión de negocio pendiente de Tomi)
 - Reportar bug / reportar mejora desde la app
-- Sumar un paso de `npm test` al workflow de GitHub Actions (`.github/workflows/deploy.yml`), para que un test roto bloquee el deploy en vez de pasar desapercibido
 
 ## 15. Instrucciones para futuros cambios
 
