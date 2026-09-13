@@ -91,6 +91,14 @@ Al bajar el repo real de GitHub para retomar la Etapa 4, la suite tenía 16 test
 - `tests/integration/app.test.jsx`: mismo login viejo, hacía fallar los 6 tests en cadena. Reescrito con Auth real mockeada + `cargarTodo`/`obtenerMembership` mockeados (usa `datosDemo()` como dataset de prueba, que ya tiene la misma forma que devuelve `cargarTodo`). Se sumó un test nuevo (cuenta sin membership).
 - `tests/features/SeccionVentas.test.jsx`: un test asumía que el componente actualizaba `data` directo con `setData` (modelo viejo). Hoy `SeccionVentas` delega el guardado en la prop `onRegistrarVenta` (que vive en `App.jsx`) — reescrito contra ese contrato real, más un test nuevo para el caso en que falla el guardado (el carrito no se vacía).
 
+## 8.3 Feature nueva — Ordenar tablas por columna (13/09/2026, v1.17)
+
+- **Materias primas y Costos fijos** (tablas de verdad): click en el título de cualquier columna para ordenar; un segundo click invierte a descendente. Ícono de flechas en cada columna (tenue si no está activa). Se aplica también a las tarjetas de mobile de Costos fijos.
+- **Platos** (no es una tabla, son tarjetas expandibles con la receta): se agregó un selector "Ordenar por" (Nombre, Margen bruto, Precio de venta, Costo por porción) + un botón de flecha para invertir la dirección. Se decidió así explícitamente en vez de forzar un "click en columna" que no existe en ese diseño.
+- Lógica reutilizable nueva: `src/lib/ordenar.js` (comparador puro, con los "sin dato" siempre al final sin importar la dirección) y `src/lib/useOrdenTabla.js` (hook de estado columna/dirección). Componente `src/components/ThOrdenable.jsx` para los headers clickeables.
+- Se sumaron tests: `tests/lib/ordenar.test.js`, más casos de orden en `SeccionMaterias.test.jsx`, `SeccionFijos.test.jsx` y `SeccionPlatos.test.jsx`. Suite en 275/275.
+- De paso se encontró que la documentación decía "hay un test que valida que el changelog coincide con `APP_VERSION`" pero no existía — se creó (`tests/shell/novedadesContenido.test.js`).
+
 ## 8.2 Bug real encontrado por los tests nuevos — sesión 13/09/2026
 
 En `src/features/pricing/SeccionPricing.jsx`, la tabla que compara el margen objetivo contra valores de referencia armaba la lista como `[cfg.margenObjetivo, 50, 40]` sin sacar duplicados. Si el margen objetivo del negocio ya era 50% o 40% (un valor perfectamente normal), la fila aparecía repetida en pantalla. Se corrigió con `[...new Set([...])]` y se sumó un test de regresión en `tests/features/SeccionPricing.test.jsx`.
@@ -142,7 +150,6 @@ Materias primas (con historial de precios y actualización masiva) · Platos/rec
 - Comprobante liviano de venta (posible envío por mail en vez de imprimir ticket)
 
 **Chicos:**
-- Ordenar tablas por columna (Materias primas, Platos, Costos fijos — mismo gesto en las 3)
 - Rotar la clave de Supabase expuesta
 - Colores de marca (en stand by, decisión de negocio pendiente de Tomi)
 - Reportar bug / reportar mejora desde la app
