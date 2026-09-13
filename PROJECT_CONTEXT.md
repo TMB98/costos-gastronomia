@@ -1,6 +1,8 @@
 # PROJECT_CONTEXT.md — La Nuna (gestión gastronómica)
 
-> Handoff para continuar el desarrollo en una conversación nueva. Refleja el estado real al 13/09/2026. Ante cualquier contradicción con documentación vieja, este archivo manda.
+> Handoff para continuar el desarrollo en una conversación nueva. Refleja el estado real verificado contra el código en GitHub al 13/09/2026 (sesión de corrección de discrepancias). Ante cualquier contradicción con documentación vieja, este archivo manda.
+>
+> ⚠️ **Nota de esta revisión:** la versión anterior de este archivo decía "265/265 tests, build limpio" y daba por terminada la cobertura de `services/datos.js` (21 funciones) y de `App.jsx` (18 tests propios). Al bajar el repo real de GitHub y correr `npm test`, eso no estaba — la suite tenía 185 tests (16 fallando) y ningún test de `datos.js` ni de `App.jsx` existía. Esas mejoras se armaron en una sesión de chat anterior pero **nunca se subieron a GitHub** (no hubo commit/push). Este archivo ahora refleja solo lo que está confirmado en el repo real.
 
 ## 1. Objetivo de la aplicación
 
@@ -72,11 +74,23 @@ Decisiones de diseño importantes:
 
 ## 8. Estrategia de testing
 
-- **~280 tests, Vitest.** Comando: `npm test`.
-- Todas las funciones de `services/datos.js` (21) tienen test directo mockeando el cliente Supabase.
-- `App.jsx` tiene test propio (18 tests) cubriendo sus ~17 handlers de negocio, con caminos de éxito y de error.
-- Tests de integración (`tests/integration/`) montan la app completa (login → sesión → datos → navegación) mockeando Supabase en el límite de red.
-- **Pendiente de esta etapa** (no arrancado): E2E de un flujo completo (venta → impacta Reportería), comando único `npm run validate` (build + tests), documentar la estrategia en este mismo archivo con más detalle si hace falta.
+- **191 tests, Vitest, todos pasando (191/191). Comando: `npm test`.** Verificado corriendo el repo real de GitHub el 13/09/2026.
+- `services/datos.js` (21 funciones): **0 tienen test directo hoy.** Pendiente real, no arrancado.
+- `App.jsx`: **no tiene test propio.** Solo lo cubre el test de integración (que monta la app entera, no testea sus ~17 handlers de negocio uno por uno).
+- Tests de integración (`tests/integration/app.test.jsx`, 7 tests) montan la app completa (login → sesión → datos → navegación) mockeando en el límite de servicios: `services/supabase.js` (auth) y `services/datos.js` (todas las tablas) — no hay llamada real a Supabase en ningún test.
+- `npm run validate` **no existe todavía** — solo están `dev`, `build`, `preview`, `test` en `package.json`.
+- ⚠️ **El pipeline de GitHub Actions (`.github/workflows/deploy.yml`) nunca corre `npm test`.** Solo hace `npm run build` y publica. Hoy es posible pushear a `main` con tests rotos sin que nada avise. Esto hay que arreglarlo junto con `npm run validate`.
+- **Pendiente de esta etapa** (no arrancado): tests de `datos.js` (21 funciones), tests propios de `App.jsx` (sus handlers de negocio), E2E de un flujo completo (venta → impacta Reportería), comando `npm run validate` (build + tests), sumar un paso de test al workflow de GitHub Actions.
+
+## 8.1 Corrección de discrepancias — sesión 13/09/2026
+
+Al bajar el repo real de GitHub para retomar la Etapa 4, la suite tenía 16 tests fallando en 4 archivos, todos por el mismo motivo: quedaron testeando la arquitectura vieja (pre-Etapa 2/3) que ya no existe. Se corrigió:
+
+- `src/services/supabase.js`: se borró código muerto (`dbLeer`, `dbGuardar`, `STORAGE_KEY`, `STORAGE_KEY_BACKUP`) que apuntaba a una tabla `datos_app` (modelo de JSON único) ya abandonada — nada del código actual lo usaba.
+- `tests/auth/PantallaLogin.test.jsx`: testeaba un login hardcodeado (usuario/contraseña tipo "juani"/"costos2026"). Reescrito mockeando `iniciarSesion` de `services/supabase.js` (Supabase Auth real).
+- `tests/services/supabase.test.js`: testeaba `dbLeer`/`dbGuardar` con `fetch` crudo mockeado. Reescrito contra las funciones reales (`iniciarSesion`, `cerrarSesion`, `cambiarPropiaClave`, `obtenerSesion`, `alCambiarSesion`, `obtenerPerfil`), mockeando `createClient` de `@supabase/supabase-js`.
+- `tests/integration/app.test.jsx`: mismo login viejo, hacía fallar los 6 tests en cadena. Reescrito con Auth real mockeada + `cargarTodo`/`obtenerMembership` mockeados (usa `datosDemo()` como dataset de prueba, que ya tiene la misma forma que devuelve `cargarTodo`). Se sumó un test nuevo (cuenta sin membership).
+- `tests/features/SeccionVentas.test.jsx`: un test asumía que el componente actualizaba `data` directo con `setData` (modelo viejo). Hoy `SeccionVentas` delega el guardado en la prop `onRegistrarVenta` (que vive en `App.jsx`) — reescrito contra ese contrato real, más un test nuevo para el caso en que falla el guardado (el carrito no se vacía).
 
 ## 9. Decisiones técnicas importantes a recordar
 
@@ -109,7 +123,7 @@ Materias primas (con historial de precios y actualización masiva) · Platos/rec
 | 1. Modularización (monolito → Vite) | ✅ Completa |
 | 2. Seguridad (Auth real, RLS, roles) | ✅ Completa |
 | 3. Base de datos relacional + concurrencia | ✅ Completa, en producción, verificada |
-| 4. QA/testing/robustez | 🟡 En curso — auditoría hecha, tests de App.jsx y datos.js sumados, 2 bugs de robustez arreglados (carrito de ventas, doble-click en modales). Falta: E2E, `npm run validate`, documentación de testing |
+| 4. QA/testing/robustez | 🟡 En curso — confirmado en GitHub: 191/191 tests pasando, código muerto limpiado, 4 tests obsoletos reescritos contra la arquitectura real, 2 bugs de robustez en producción (carrito de ventas, doble-click en modales — estos sí llegaron a GitHub). Falta lo más grande: tests de `datos.js` y `App.jsx` (nunca se subieron), E2E, `npm run validate`, sumar test al CI |
 
 ## 14. Pendientes activos (sin arrancar), por tamaño
 
@@ -129,6 +143,7 @@ Materias primas (con historial de precios y actualización masiva) · Platos/rec
 - Rotar la clave de Supabase expuesta
 - Colores de marca (en stand by, decisión de negocio pendiente de Tomi)
 - Reportar bug / reportar mejora desde la app
+- Sumar un paso de `npm test` al workflow de GitHub Actions (`.github/workflows/deploy.yml`), para que un test roto bloquee el deploy en vez de pasar desapercibido
 
 ## 15. Instrucciones para futuros cambios
 
