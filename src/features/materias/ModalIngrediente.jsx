@@ -24,8 +24,9 @@ function ModalIngrediente({ inicial, categorias, existentes, onAgregarCategoria,
     return existentes.find((i) => i.id !== f.id && normalizar(i.nombre) === nombreNorm) || null;
   }, [f.nombre, f.id, existentes]);
 
-  const guardar = () => {
-    if (!f.nombre.trim()) return;
+  const [guardando, setGuardando] = useState(false);
+  const guardar = async () => {
+    if (!f.nombre.trim() || guardando) return;
     const precio = f.precio === "" || f.precio == null ? null : Number(f.precio);
     const cambio = !inicial || Number(inicial.precio) !== precio;
     // Si el precio cambió, la fecha del cambio es HOY — antes se guardaba con la
@@ -38,7 +39,12 @@ function ModalIngrediente({ inicial, categorias, existentes, onAgregarCategoria,
       historial.push({ fecha: fechaPrecio, precio });
       historial.sort((a, b) => a.fecha.localeCompare(b.fecha));
     }
-    onGuardar({ ...f, precio, fechaPrecio, historial, id: f.id || uid("i") });
+    setGuardando(true);
+    try {
+      await onGuardar({ ...f, precio, fechaPrecio, historial, id: f.id || uid("i") });
+    } finally {
+      setGuardando(false); // si falló y el modal sigue abierto, esto libera el botón para reintentar
+    }
   };
   return (
     <Modal title={inicial ? "Editar ingrediente" : "Nuevo ingrediente"} onClose={onClose}>
@@ -77,7 +83,7 @@ function ModalIngrediente({ inicial, categorias, existentes, onAgregarCategoria,
       </div>
       <div className="mt-5 flex justify-end gap-2">
         <Boton variant="ghost" onClick={onClose}>Cancelar</Boton>
-        <Boton onClick={guardar}><Check size={15} /> Guardar ingrediente</Boton>
+        <Boton onClick={guardar} disabled={guardando}><Check size={15} /> {guardando ? "Guardando…" : "Guardar ingrediente"}</Boton>
       </div>
     </Modal>
   );
