@@ -3,6 +3,8 @@ import { usePuedeEditar } from "../../auth/usuarios.js";
 import { NAVY, NAVY_TEXT, ROJO, ROJO_BG, ROJO_TEXT, AMARILLO_BG, AMARILLO_TEXT, inputCls } from "../../config/constants.js";
 import { $0, pct1 } from "../../lib/formato.js";
 import { cfMensual, estadoAjuste } from "../../lib/calculos.js";
+import { ordenarLista } from "../../lib/ordenar.js";
+import { useOrdenTabla } from "../../lib/useOrdenTabla.js";
 import { Plus, AlertTriangle, Pencil, Trash2 } from "../../components/icons.jsx";
 import AyudaSeccion from "../../components/AyudaSeccion.jsx";
 import KPI from "../../components/KPI.jsx";
@@ -10,10 +12,22 @@ import Tarjeta from "../../components/Tarjeta.jsx";
 import Boton from "../../components/Boton.jsx";
 import Campo from "../../components/Campo.jsx";
 import ConTooltip from "../../components/ConTooltip.jsx";
+import ThOrdenable from "../../components/ThOrdenable.jsx";
 import BarraH from "../../components/graficos/BarraH.jsx";
 
 function SeccionFijos({ data, totalCF, setModal, borrar, cfg, setCfg }) {
   const puedeEditar = usePuedeEditar();
+  const { columna, direccion, ordenarPor } = useOrdenTabla("nombre");
+  const CAMPOS_ORDEN = {
+    nombre: (c) => c.nombre?.toLowerCase(),
+    categoria: (c) => c.categoria,
+    frecuencia: (c) => c.frecuencia,
+    mensual: (c) => cfMensual(c),
+  };
+  const listaOrdenada = useMemo(
+    () => ordenarLista(data.costosFijos, CAMPOS_ORDEN[columna] || CAMPOS_ORDEN.nombre, direccion),
+    [data.costosFijos, columna, direccion]
+  );
   const porCat = useMemo(() => {
     const m = {};
     data.costosFijos.forEach((c) => { m[c.categoria] = (m[c.categoria] || 0) + cfMensual(c); });
@@ -63,15 +77,15 @@ function SeccionFijos({ data, totalCF, setModal, borrar, cfg, setCfg }) {
           <table className="w-full text-sm">
             <thead style={{ backgroundColor: NAVY }}>
               <tr className="text-left text-xs uppercase tracking-wide text-white">
-                <th className="px-3 py-2.5">Gasto</th>
-                  <th className="px-3 py-2.5">Categoría</th>
-                  <th className="px-3 py-2.5">Frec.</th>
-                  <th className="px-3 py-2.5 text-right">Mensual</th>
+                <ThOrdenable clave="nombre" columna={columna} direccion={direccion} onOrdenar={ordenarPor}>Gasto</ThOrdenable>
+                <ThOrdenable clave="categoria" columna={columna} direccion={direccion} onOrdenar={ordenarPor}>Categoría</ThOrdenable>
+                <ThOrdenable clave="frecuencia" columna={columna} direccion={direccion} onOrdenar={ordenarPor}>Frec.</ThOrdenable>
+                <ThOrdenable clave="mensual" columna={columna} direccion={direccion} onOrdenar={ordenarPor} align="right">Mensual</ThOrdenable>
                   <th className="px-3 py-2.5 text-right"></th>
                 </tr>
               </thead>
               <tbody>
-                {data.costosFijos.map((c, i) => {
+                {listaOrdenada.map((c, i) => {
                   const ajuste = estadoAjuste(c.proximoAjuste);
                   return (
                   <tr key={c.id} className={i % 2 ? "bg-gray-50 dark:bg-gray-700/40" : "bg-white dark:bg-gray-800"}>
@@ -119,7 +133,7 @@ function SeccionFijos({ data, totalCF, setModal, borrar, cfg, setCfg }) {
 
           {/* Tarjetas apiladas: solo en mobile */}
           <div className="space-y-2.5 sm:hidden">
-            {data.costosFijos.map((c) => {
+            {listaOrdenada.map((c) => {
               const ajuste = estadoAjuste(c.proximoAjuste);
               return (
               <div key={c.id} className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
