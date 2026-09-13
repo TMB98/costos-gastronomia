@@ -33,6 +33,9 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      - name: Correr los tests (si algo está roto, no se sigue con el deploy)
+        run: npm test
+
       - name: Compilar (npm run build)
         run: npm run build
         env:
