@@ -1,12 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { usePuedeEditar } from "../../auth/usuarios.js";
 import { CAT_ING, NAVY, NAVY_TEXT, ROJO, ROJO_BG, ROJO_TEXT, inputCls } from "../../config/constants.js";
 import { fechaCorta, $ } from "../../lib/formato.js";
+import { ordenarLista } from "../../lib/ordenar.js";
+import { useOrdenTabla } from "../../lib/useOrdenTabla.js";
 import { RefreshCw, Plus, Search, AlertTriangle, History, Pencil, Trash2 } from "../../components/icons.jsx";
 import AyudaSeccion from "../../components/AyudaSeccion.jsx";
 import Tarjeta from "../../components/Tarjeta.jsx";
 import Boton from "../../components/Boton.jsx";
 import ConTooltip from "../../components/ConTooltip.jsx";
+import ThOrdenable from "../../components/ThOrdenable.jsx";
 import ModalHistorialPrecio from "./ModalHistorialPrecio.jsx";
 
 function SeccionMaterias({ data, setModal, borrar, cfg, setCfg }) {
@@ -14,8 +17,21 @@ function SeccionMaterias({ data, setModal, borrar, cfg, setCfg }) {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("Todas");
   const [historialDe, setHistorialDe] = useState(null);
-  const lista = data.ingredientes.filter(
+  const { columna, direccion, ordenarPor } = useOrdenTabla("nombre");
+  const CAMPOS_ORDEN = {
+    nombre: (i) => i.nombre?.toLowerCase(),
+    categoria: (i) => i.categoria,
+    unidad: (i) => i.unidad,
+    precio: (i) => i.precio,
+    proveedor: (i) => i.proveedor,
+    fechaPrecio: (i) => i.fechaPrecio,
+  };
+  const listaFiltrada = data.ingredientes.filter(
     (i) => (cat === "Todas" || i.categoria === cat) && i.nombre.toLowerCase().includes(q.toLowerCase())
+  );
+  const lista = useMemo(
+    () => ordenarLista(listaFiltrada, CAMPOS_ORDEN[columna] || CAMPOS_ORDEN.nombre, direccion),
+    [listaFiltrada, columna, direccion]
   );
   const sinPrecio = data.ingredientes.filter((i) => i.precio == null).length;
 
@@ -68,12 +84,12 @@ function SeccionMaterias({ data, setModal, borrar, cfg, setCfg }) {
         <table className="w-full text-sm">
           <thead style={{ backgroundColor: NAVY }}>
             <tr className="text-left text-xs uppercase tracking-wide text-white">
-              <th className="px-3 py-2.5">Ingrediente</th>
-              <th className="px-3 py-2.5">Categoría</th>
-              <th className="px-3 py-2.5">Unidad</th>
-              <th className="px-3 py-2.5 text-right">Precio</th>
-              <th className="px-3 py-2.5">Proveedor</th>
-              <th className="px-3 py-2.5">Últ. actualización</th>
+              <ThOrdenable clave="nombre" columna={columna} direccion={direccion} onOrdenar={ordenarPor}>Ingrediente</ThOrdenable>
+              <ThOrdenable clave="categoria" columna={columna} direccion={direccion} onOrdenar={ordenarPor}>Categoría</ThOrdenable>
+              <ThOrdenable clave="unidad" columna={columna} direccion={direccion} onOrdenar={ordenarPor}>Unidad</ThOrdenable>
+              <ThOrdenable clave="precio" columna={columna} direccion={direccion} onOrdenar={ordenarPor} align="right">Precio</ThOrdenable>
+              <ThOrdenable clave="proveedor" columna={columna} direccion={direccion} onOrdenar={ordenarPor}>Proveedor</ThOrdenable>
+              <ThOrdenable clave="fechaPrecio" columna={columna} direccion={direccion} onOrdenar={ordenarPor}>Últ. actualización</ThOrdenable>
               <th className="px-3 py-2.5 text-right">Acciones</th>
             </tr>
           </thead>
