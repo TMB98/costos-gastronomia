@@ -187,7 +187,7 @@ function SeccionPricing({ data, cfg, platosCalc, totalCF, totales, cfPorPorcion,
             { l: "Costo total real por porción", v: plato.incompleto ? null : real, f: "Ingredientes + costos fijos asignados", fuerte: true },
             { l: "Precio mínimo para no perder plata (punto de equilibrio)", v: plato.incompleto ? null : real, f: "Precio neto = costo total real. Con IVA: " + $(conIVA(real, cfg)) },
           ];
-          const margenes = [cfg.margenObjetivo, 50, 40];
+          const margenes = [...new Set([cfg.margenObjetivo, 50, 40])];
           return (
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               <div>
