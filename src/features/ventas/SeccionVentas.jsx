@@ -72,14 +72,20 @@ function SeccionVentas({ data, platosCalc, borrar, borrarPedidoVenta, onRegistra
 
   const totalCarrito = carrito.reduce((s, it) => s + it.cantidad * it.precioUnitario, 0);
 
-  const confirmarVenta = () => {
-    if (!puedeVentas) return;
+  const [confirmando, setConfirmando] = useState(false);
+  const confirmarVenta = async () => {
+    if (!puedeVentas || confirmando) return;
     if (carrito.length === 0) {
       toast("⚠️ Todavía no agregaste ningún ítem al pedido");
       return;
     }
-    onRegistrarVenta(fecha, medioPago, carrito);
-    setCarrito([]);
+    setConfirmando(true);
+    try {
+      const ok = await onRegistrarVenta(fecha, medioPago, carrito);
+      if (ok) setCarrito([]); // si falló, dejamos el carrito tal cual para no hacer recargar todo de nuevo
+    } finally {
+      setConfirmando(false);
+    }
   };
 
   const ventasFiltradas = useMemo(() => {
@@ -291,8 +297,8 @@ function SeccionVentas({ data, platosCalc, borrar, borrarPedidoVenta, onRegistra
             </select>
           </Campo>
           <div className="flex items-end">
-            <Boton onClick={confirmarVenta} className="w-full justify-center" disabled={carrito.length === 0}>
-              <Check size={15} /> Confirmar venta{carrito.length > 0 && ` (${$(totalCarrito)})`}
+            <Boton onClick={confirmarVenta} className="w-full justify-center" disabled={carrito.length === 0 || confirmando}>
+              <Check size={15} /> {confirmando ? "Confirmando…" : `Confirmar venta${carrito.length > 0 ? ` (${$(totalCarrito)})` : ""}`}
             </Boton>
           </div>
         </div>
