@@ -338,7 +338,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
 
   /* ---------- Ventas ---------- */
   const registrarVenta = async (fecha, medioPago, items) => {
-    if (!puedeVentas) return;
+    if (!puedeVentas) return false;
     const pedidoId = uid("ped");
     const nuevasVentas = items.map((it) => ({
       id: uid("v"), pedidoId, fecha, medioPago,
@@ -350,8 +350,12 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
       setData((d) => ({ ...d, ventas: [...nuevasVentas, ...(d.ventas || [])] }));
       const total = items.reduce((s, it) => s + it.cantidad * it.precioUnitario, 0);
       toast(`✅ Venta registrada — ${items.length} ítem${items.length > 1 ? "s" : ""}, total $${total.toLocaleString("es-AR")}`);
+      return true;
     } catch (e) {
+      // Ojo: no vaciamos el carrito acá — eso lo decide quien llama, así la
+      // persona no pierde el pedido que ya armó si esto falla.
       toast(`❌ No se pudo registrar la venta: ${e.message || "error desconocido"}`);
+      return false;
     }
   };
 
