@@ -11,6 +11,16 @@ import SelectConAgregar from "../../components/SelectConAgregar.jsx";
 function ModalCostoFijo({ inicial, categorias, onAgregarCategoria, onGuardar, onClose }) {
   const [f, setF] = useState(inicial || { nombre: "", categoria: categorias[0], monto: "", frecuencia: "mensual", notas: "", proximoAjuste: "" });
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  const [guardando, setGuardando] = useState(false);
+  const guardar = async () => {
+    if (!f.nombre.trim() || guardando) return;
+    setGuardando(true);
+    try {
+      await onGuardar({ ...f, id: f.id || uid("c"), monto: Number(f.monto) || 0 });
+    } finally {
+      setGuardando(false);
+    }
+  };
   return (
     <Modal title={inicial ? "Editar costo fijo" : "Nuevo costo fijo"} onClose={onClose}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -42,8 +52,8 @@ function ModalCostoFijo({ inicial, categorias, onAgregarCategoria, onGuardar, on
       </div>
       <div className="mt-5 flex justify-end gap-2">
         <Boton variant="ghost" onClick={onClose}>Cancelar</Boton>
-        <Boton onClick={() => f.nombre.trim() && onGuardar({ ...f, id: f.id || uid("c"), monto: Number(f.monto) || 0 })}>
-          <Check size={15} /> Guardar costo
+        <Boton onClick={guardar} disabled={guardando}>
+          <Check size={15} /> {guardando ? "Guardando…" : "Guardar costo"}
         </Boton>
       </div>
     </Modal>
