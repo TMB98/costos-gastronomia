@@ -17,6 +17,16 @@ function ModalPlato({ inicial, ingredientes, config, onAgregarCategoria, onGuard
     }
   );
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  const [guardando, setGuardando] = useState(false);
+  const guardar = async () => {
+    if (!f.nombre.trim() || guardando) return;
+    setGuardando(true);
+    try {
+      await onGuardar({ ...f, id: f.id || uid("p"), porciones: Number(f.porciones) || 1, precioVenta: Number(f.precioVenta) || 0 });
+    } finally {
+      setGuardando(false);
+    }
+  };
   const mapIng = useMemo(() => Object.fromEntries(ingredientes.map((i) => [i.id, i])), [ingredientes]);
   const calc = calcPlato({ ...f, porciones: Number(f.porciones) || 1 }, mapIng);
 
@@ -149,8 +159,8 @@ function ModalPlato({ inicial, ingredientes, config, onAgregarCategoria, onGuard
 
       <div className="mt-5 flex justify-end gap-2">
         <Boton variant="ghost" onClick={onClose}>Cancelar</Boton>
-        <Boton onClick={() => f.nombre.trim() && onGuardar({ ...f, id: f.id || uid("p"), porciones: Number(f.porciones) || 1, precioVenta: Number(f.precioVenta) || 0 })}>
-          <Check size={15} /> Guardar plato
+        <Boton onClick={guardar} disabled={guardando}>
+          <Check size={15} /> {guardando ? "Guardando…" : "Guardar plato"}
         </Boton>
       </div>
     </Modal>
