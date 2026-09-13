@@ -1,8 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { usePuedeEditar } from "../../auth/usuarios.js";
 import { CAT_PLATO, NAVY_TEXT, ROJO, ROJO_BG, inputCls } from "../../config/constants.js";
 import { $, pct1, nf2 } from "../../lib/formato.js";
-import { Plus, Search, UtensilsCrossed, Pencil, Copy, Trash2 } from "../../components/icons.jsx";
+import { ordenarLista } from "../../lib/ordenar.js";
+import { useOrdenTabla } from "../../lib/useOrdenTabla.js";
+import { Plus, Search, UtensilsCrossed, Pencil, Copy, Trash2, ChevronUp, ChevronDown } from "../../components/icons.jsx";
 import AyudaSeccion from "../../components/AyudaSeccion.jsx";
 import Tarjeta from "../../components/Tarjeta.jsx";
 import Boton from "../../components/Boton.jsx";
@@ -10,13 +12,25 @@ import ConTooltip from "../../components/ConTooltip.jsx";
 import Formula from "../../components/Formula.jsx";
 import Chip from "../../components/Chip.jsx";
 
+const OPCIONES_ORDEN = {
+  nombre: { etiqueta: "Nombre", obtenerValor: (p) => p.nombre?.toLowerCase() },
+  margen: { etiqueta: "Margen bruto", obtenerValor: (p) => p.margen },
+  precioVenta: { etiqueta: "Precio de venta", obtenerValor: (p) => p.precioVenta },
+  costoPorcion: { etiqueta: "Costo por porción", obtenerValor: (p) => p.costoPorcion },
+};
+
 function SeccionPlatos({ platosCalc, cfg, setCfg, setModal, borrar, duplicarPlato }) {
   const puedeEditar = usePuedeEditar();
   const [abierto, setAbierto] = useState(null);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("Todas");
-  const lista = platosCalc.filter(
+  const { columna, direccion, ordenarPor, setDireccion } = useOrdenTabla("nombre");
+  const listaFiltrada = platosCalc.filter(
     (p) => (cat === "Todas" || p.categoria === cat) && p.nombre.toLowerCase().includes(q.toLowerCase())
+  );
+  const lista = useMemo(
+    () => ordenarLista(listaFiltrada, OPCIONES_ORDEN[columna]?.obtenerValor || OPCIONES_ORDEN.nombre.obtenerValor, direccion),
+    [listaFiltrada, columna, direccion]
   );
   return (
     <>
@@ -44,6 +58,22 @@ function SeccionPlatos({ platosCalc, cfg, setCfg, setModal, borrar, duplicarPlat
           <option>Todas</option>
           {(cfg.categoriasPlatos || CAT_PLATO).map((c) => <option key={c}>{c}</option>)}
         </select>
+        <div className="flex items-center gap-1">
+          <select className={inputCls + " w-auto"} value={columna} onChange={(e) => ordenarPor(e.target.value)}>
+            {Object.entries(OPCIONES_ORDEN).map(([clave, { etiqueta }]) => (
+              <option key={clave} value={clave}>Ordenar por: {etiqueta}</option>
+            ))}
+          </select>
+          <ConTooltip texto={direccion === "asc" ? "Ascendente — cambiar a descendente" : "Descendente — cambiar a ascendente"}>
+            <button
+              onClick={() => setDireccion((d) => (d === "asc" ? "desc" : "asc"))}
+              title={direccion === "asc" ? "Ascendente — cambiar a descendente" : "Descendente — cambiar a ascendente"}
+              className="rounded border border-gray-300 dark:border-gray-600 p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              {direccion === "asc" ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+            </button>
+          </ConTooltip>
+        </div>
       </div>
       <div className="space-y-3">
         {lista.map((p) => (
