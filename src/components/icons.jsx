@@ -46,6 +46,9 @@ const ClipboardList = svgIcon(<><rect x="8" y="2" width="8" height="4" rx="1" />
 const Upload = svgIcon(<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></>);
 const Eye = svgIcon(<><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" /><circle cx="12" cy="12" r="3" /></>);
 const EyeOff = svgIcon(<><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><path d="M6.61 6.61C2.7 8.9 1 12 1 12s4 8 11 8a9.26 9.26 0 0 0 5.39-1.61" /><line x1="1" y1="1" x2="23" y2="23" /></>);
+const ChevronUp = svgIcon(<polyline points="18 15 12 9 6 15" />);
+const ChevronDown = svgIcon(<polyline points="6 9 12 15 18 9" />);
+const ChevronsUpDown = svgIcon(<><path d="m7 15 5 5 5-5" /><path d="m7 9 5-5 5 5" /></>);
 
 export {
   Plus,
@@ -78,5 +81,8 @@ export {
   ClipboardList,
   Upload,
   Eye,
-  EyeOff
+  EyeOff,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown
 };
