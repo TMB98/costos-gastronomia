@@ -135,6 +135,80 @@ Materias primas (con historial de precios y actualización masiva) · Platos/rec
 | 2. Seguridad (Auth real, RLS, roles) | ✅ Completa |
 | 3. Base de datos relacional + concurrencia | ✅ Completa, en producción, verificada |
 | 4. QA/testing/robustez | ✅ Completa (13/09/2026) — 255/255 tests, `datos.js` y `App.jsx` con test propio, E2E venta→Reportería, `npm run validate`, CI corre tests antes de deployar. Pendiente menor: seguir sumando tests a medida que se agreguen features nuevas (no es un "terminado para siempre") |
+| 5. Operación productiva / Production Readiness | 🟡 En curso (13/09/2026) — ver sección 15.1 |
+
+## 13.1 Etapa 5 — Operación productiva / Production Readiness (13/09/2026)
+
+Diagnóstico inicial hecho contra el repo real (no supuestos). Hallazgos
+🔴 bloqueantes encontrados: cero logging (ni un `console.error` en todo
+`src/`), cero monitoreo de errores, sin migraciones de base de datos
+versionadas (no existía la carpeta `supabase/migrations/`), y
+`ARCHITECTURE.md` completamente desactualizado (describía la arquitectura
+pre-migración). **Confirmado: proyecto de Supabase en plan Free** — sin
+backups automáticos de ningún tipo hasta ahora.
+
+Veredicto de la auditoría: **NO TODAVÍA, pero cerca** — la base de código
+(gracias a Etapas 1-4) está sólida; lo que falta es específicamente
+visibilidad operativa (logging/monitoreo) y backups, no un rediseño.
+
+Decisiones tomadas (con justificación completa en el diagnóstico original
+del usuario, conversación del 13/09/2026):
+- **No migrar de GitHub Pages** — ya cumple los requisitos mínimos
+  (HTTPS, deploy desde Git, variables de entorno, y sí tiene un camino de
+  rollback real vía "Re-run" de una corrida vieja en Actions, solo que no
+  estaba documentado).
+- **No armar un ambiente de Staging permanente** — local (`npm run dev`) +
+  Pull Requests alcanza para un desarrollador único.
+- **Offline: opción A (degradación controlada), NO ventas offline.** La
+  app ya no muestra éxito falso al fallar un guardado (por diseño desde la
+  migración a base relacional) — falta solo un aviso proactivo de "estás
+  sin conexión". Ventas offline con cola de sincronización se descartó por
+  complejidad real (duplicados, conflictos) sin evidencia todavía de que
+  los cortes de internet sean un problema frecuente en el local.
+- **No automatizar migraciones desde CI** — aplicarlas a mano pero
+  versionadas es suficiente para el volumen actual de cambios.
+
+Implementado en esta sesión:
+- `ARCHITECTURE.md` reescrito con el estado real (ya no describe la
+  arquitectura vieja); ahora deja explícito que `PROJECT_CONTEXT.md` es la
+  fuente de verdad del ESTADO, y `ARCHITECTURE.md` solo del mapa de código.
+- `.github/workflows/backup.yml`: backup diario automático de la base
+  (esquema `public`, formato custom de `pg_dump`), guardado como artifact
+  de GitHub Actions (retención 90 días), más botón para disparar un backup
+  a mano. Requiere un secret nuevo en GitHub: `SUPABASE_DB_URL` (connection
+  string directo de Postgres, no la anon key) — **pendiente que Tomi lo
+  cargue**, sacándolo de Supabase Dashboard → Settings → Database.
+  No cubre el esquema `auth` (usuarios/contraseñas) — Supabase lo maneja
+  aparte.
+- `RUNBOOK.md` nuevo: guía de "pasó esto → hacé esto" para: app no carga,
+  no pueden loguearse, Supabase no responde (incluye el aviso de que el
+  plan Free pausa proyectos inactivos ~7 días), se cortó Internet en el
+  local, un deploy rompió producción (rollback vía Re-run), se
+  corrompieron datos (restore — **procedimiento documentado pero NO
+  probado todavía**, requiere `pg_restore` desde una máquina con red sin
+  restricciones, ej. Claude Code local — el sandbox de Claude.ai no tiene
+  acceso de red a Supabase), y credencial expuesta.
+- Restore automatizado (workflow de GitHub Actions): **decidido no
+  construirlo todavía** — se prueba primero contra el proyecto de
+  desarrollo de Supabase (siguiente punto pendiente) antes de confiar en
+  algo así para producción.
+
+Pendiente de esta etapa, en orden de prioridad:
+1. Tomi carga el secret `SUPABASE_DB_URL` en GitHub para que el backup
+   funcione (sin esto, el workflow de backup está armado pero no puede
+   correr).
+2. Logging + monitoreo de errores con Sentry (plan gratuito) — requiere que
+   Tomi cree la cuenta y consiga el DSN, Claude integra el código.
+3. Crear `supabase/migrations/` con el esquema actual versionado como
+   punto de partida.
+4. Segundo proyecto de Supabase (gratis) para desarrollo, sin datos reales.
+5. Pasar de push directo a `main` a flujo con Pull Request + protección de
+   rama (configuración de GitHub, no código).
+6. Banner de "estás sin conexión" en la app (chico).
+7. Probar el restore de verdad contra el proyecto de desarrollo, una vez
+   exista.
+8. Opcional/baja prioridad: ping de disponibilidad (ej. UptimeRobot) a la
+   URL de producción.
 
 ## 14. Pendientes activos (sin arrancar), por tamaño
 
