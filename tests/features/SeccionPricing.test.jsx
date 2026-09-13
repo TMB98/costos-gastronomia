@@ -188,3 +188,21 @@ describe("SeccionPricing — resumen de toda la carta", () => {
     expect(el.textContent).toContain("Flan");
   });
 });
+
+describe("SeccionPricing — tabla de comparación de márgenes", () => {
+  // Bug real encontrado el 13/09/2026: la tabla compara el margen objetivo del
+  // negocio contra dos valores fijos (50% y 40%). Si el margen objetivo del
+  // negocio YA es 50% o 40% (nada raro), el valor quedaba repetido en la lista
+  // y la fila se mostraba duplicada en pantalla (además de un warning de React
+  // por key duplicada). Se corrigió sacando duplicados con un Set.
+  it("si el margen objetivo del negocio coincide con uno de los valores fijos (50%), no repite la fila", () => {
+    const cfgConMargen50 = { ...CFG_BASE, margenObjetivo: 50 };
+    const platoConMargen50 = construirPlatoCalc(
+      { id: "p1", nombre: "Torta", categoria: "Postre", porciones: 1, precioVenta: 4300, items: [{ id: "l1", ingId: "i1", cantidad: 1, unidad: "kg" }] },
+      cfgConMargen50
+    );
+    const el = montar(<SeccionPricing {...propsBase({ cfg: cfgConMargen50, platosCalc: [platoConMargen50] })} />);
+    const filasDe50 = [...el.querySelectorAll("tr")].filter((tr) => tr.textContent.trim().startsWith("50%"));
+    expect(filasDe50).toHaveLength(1);
+  });
+});
