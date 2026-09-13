@@ -1,0 +1,57 @@
+name: Backup diario de la base de datos
+
+# Corre solo (todos los días) y también se puede disparar a mano desde la
+# pestaña Actions con el botón "Run workflow" — por ejemplo, justo antes de
+# aplicar una migración de base de datos.
+#
+# El plan Free de Supabase NO incluye backups automáticos. Esto es el
+# reemplazo casero: un volcado completo de la base todos los días, guardado
+# como "artifact" de GitHub Actions (gratis, sin herramientas nuevas).
+#
+# OJO — LO QUE ESTO CUBRE Y LO QUE NO:
+# Respalda el esquema "public" (todas las tablas de la app: ingredientes,
+# platos, ventas, etc.). NO incluye la tabla de usuarios/contraseñas de
+# Supabase Auth (esquema "auth") — Supabase la maneja aparte y no está
+# pensada para respaldarse así. Si algo pasara con los usuarios, se
+# recrean las cuentas o se resetea la contraseña desde el panel de Supabase.
+on:
+  schedule:
+    - cron: "0 6 * * *" # 06:00 UTC = 03:00 en Argentina, hora de bajo uso
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    container:
+      image: postgres:17-alpine # trae pg_dump; compatible con versiones de servidor iguales o más viejas
+    steps:
+      - name: Calcular la fecha de hoy (para el nombre del archivo)
+        id: fecha
+        run: echo "valor=$(date +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+      - name: Volcar la base de datos (solo las tablas de la app, esquema "public")
+        env:
+          PGCONNECT_TIMEOUT: "30"
+        run: |
+          pg_dump "${{ secrets.SUPABASE_DB_URL }}" \
+            --schema=public \
+            --no-owner \
+            --no-privileges \
+            --format=custom \
+            --file="backup-${{ steps.fecha.outputs.valor }}.dump"
+
+      - name: Verificar que el backup no haya salido vacío o roto
+        run: |
+          tam=$(stat -c%s "backup-${{ steps.fecha.outputs.valor }}.dump")
+          echo "Tamaño del backup: $tam bytes"
+          if [ "$tam" -lt 1000 ]; then
+            echo "::error::El backup salió sospechosamente chico ($tam bytes) — algo falló aunque pg_dump no haya devuelto error. Avisar a Tomi."
+            exit 1
+          fi
+
+      - name: Guardar el backup (se puede descargar desde esta misma corrida en Actions)
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-supabase-${{ steps.fecha.outputs.valor }}
+          path: backup-${{ steps.fecha.outputs.valor }}.dump
+          retention-days: 90 # se borra solo pasados los 90 días
