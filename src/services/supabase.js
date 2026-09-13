@@ -8,9 +8,6 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-const DB_TABLA = "datos_app";
-const DB_ID = "principal";
-
 export const dbConfigurada = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 
 export const supabase = dbConfigurada ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
@@ -50,23 +47,4 @@ export async function obtenerPerfil(userId) {
   if (error) throw error;
   return data;
 }
-
-/* ---------- Datos de la app ---------- */
-export async function dbLeer() {
-  if (!dbConfigurada) return null;
-  const { data, error } = await supabase.from(DB_TABLA).select("payload").eq("id", DB_ID).maybeSingle();
-  if (error) throw error;
-  return data ? data.payload : null;
-}
-
-export async function dbGuardar(data) {
-  if (!dbConfigurada) return false;
-  const { error } = await supabase
-    .from(DB_TABLA)
-    .upsert({ id: DB_ID, payload: data, actualizado_en: new Date().toISOString() });
-  return !error;
-}
-
-export const STORAGE_KEY = "gastro_costos_v1";
-export const STORAGE_KEY_BACKUP = "gastro_costos_v1_backup";
 
