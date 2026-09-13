@@ -3,6 +3,14 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
 import PantallaLogin from "../../src/auth/PantallaLogin.jsx";
+import { iniciarSesion } from "../../src/services/supabase.js";
+
+// PantallaLogin delega la autenticación real en services/supabase.js
+// (Supabase Auth con email/contraseña) — acá mockeamos esa función para
+// no depender de red ni de credenciales reales.
+vi.mock("../../src/services/supabase.js", () => ({
+  iniciarSesion: vi.fn(),
+}));
 
 function montar(elemento) {
   const contenedor = document.createElement("div");
@@ -20,68 +28,80 @@ function setVal(input, valor) {
   });
 }
 
+async function esperar() {
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+}
+
 describe("PantallaLogin", () => {
   beforeEach(() => {
     localStorage.clear();
+    iniciarSesion.mockReset();
   });
 
-  it("con usuario y contraseña correctos, llama a onIngresar con los datos del usuario", () => {
+  it("con email y contraseña correctos, llama a onIngresar con la sesión de Supabase", async () => {
+    const sesionFalsa = { user: { id: "u1", email: "juani@lanuna.com" } };
+    iniciarSesion.mockResolvedValue(sesionFalsa);
     const onIngresar = vi.fn();
     const el = montar(<PantallaLogin onIngresar={onIngresar} />);
-    const [inputUsuario, inputClave] = el.querySelectorAll("input");
-    setVal(inputUsuario, "juani");
+    const [inputEmail, inputClave] = el.querySelectorAll("input");
+    setVal(inputEmail, "juani@lanuna.com");
     setVal(inputClave, "costos2026");
     const btn = [...el.querySelectorAll("button")].find((b) => b.textContent.trim() === "Ingresar");
-    act(() => btn.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    await act(async () => { btn.dispatchEvent(new MouseEvent("click", { bubbles: true })); await esperar(); });
 
-    expect(onIngresar).toHaveBeenCalledTimes(1);
-    expect(onIngresar.mock.calls[0][0]).toMatchObject({ usuario: "juani", rol: "admin" });
+    expect(iniciarSesion).toHaveBeenCalledWith("juani@lanuna.com", "costos2026");
+    expect(onIngresar).toHaveBeenCalledWith(sesionFalsa);
   });
 
-  it("con contraseña incorrecta, NO llama a onIngresar y muestra el error", () => {
+  it("con contraseña incorrecta, NO llama a onIngresar y muestra el error", async () => {
+    iniciarSesion.mockRejectedValue(new Error("Invalid login credentials"));
     const onIngresar = vi.fn();
     const el = montar(<PantallaLogin onIngresar={onIngresar} />);
-    const [inputUsuario, inputClave] = el.querySelectorAll("input");
-    setVal(inputUsuario, "juani");
+    const [inputEmail, inputClave] = el.querySelectorAll("input");
+    setVal(inputEmail, "juani@lanuna.com");
     setVal(inputClave, "clave-mal");
     const btn = [...el.querySelectorAll("button")].find((b) => b.textContent.trim() === "Ingresar");
-    act(() => btn.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    await act(async () => { btn.dispatchEvent(new MouseEvent("click", { bubbles: true })); await esperar(); });
 
     expect(onIngresar).not.toHaveBeenCalled();
     expect(el.textContent).toContain("Usuario o contraseña incorrectos");
   });
 
-  it("reconoce a un usuario cajero con su rol correcto", () => {
-    const onIngresar = vi.fn();
-    const el = montar(<PantallaLogin onIngresar={onIngresar} />);
-    const [inputUsuario, inputClave] = el.querySelectorAll("input");
-    setVal(inputUsuario, "pastelera");
-    setVal(inputClave, "Caja2026a");
-    const btn = [...el.querySelectorAll("button")].find((b) => b.textContent.trim() === "Ingresar");
+  it("mientras espera la respuesta de Supabase, deshabilita el botón y muestra 'Ingresando…'", async () => {
+    let resolver;
+    iniciarSesion.mockReturnValue(new Promise((r) => { resolver = r; }));
+    const el = montar(<PantallaLogin onIngresar={() => {}} />);
+    const [inputEmail, inputClave] = el.querySelectorAll("input");
+    setVal(inputEmail, "juani@lanuna.com");
+    setVal(inputClave, "costos2026");
+    const btn = [...el.querySelectorAll("button")].find((b) => b.textContent.trim() === "Ingresar" || b.textContent.trim() === "Ingresando…");
     act(() => btn.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 
-    expect(onIngresar.mock.calls[0][0]).toMatchObject({ usuario: "pastelera", rol: "cajero" });
+    expect(btn.disabled).toBe(true);
+    expect(btn.textContent).toBe("Ingresando…");
+    await act(async () => { resolver({ user: { id: "u1" } }); await esperar(); });
   });
 
-  it("el usuario no distingue mayúsculas/minúsculas", () => {
+  it("no intenta loguearse si falta el email o la contraseña", () => {
     const onIngresar = vi.fn();
     const el = montar(<PantallaLogin onIngresar={onIngresar} />);
-    const [inputUsuario, inputClave] = el.querySelectorAll("input");
-    setVal(inputUsuario, "JUANI");
-    setVal(inputClave, "costos2026");
     const btn = [...el.querySelectorAll("button")].find((b) => b.textContent.trim() === "Ingresar");
     act(() => btn.dispatchEvent(new MouseEvent("click", { bubbles: true })));
-    expect(onIngresar).toHaveBeenCalledTimes(1);
+    expect(iniciarSesion).not.toHaveBeenCalled();
   });
 
-  it("presionar Enter en el campo de contraseña también confirma el login", () => {
+  it("presionar Enter en el campo de contraseña también confirma el login", async () => {
+    iniciarSesion.mockResolvedValue({ user: { id: "u1" } });
     const onIngresar = vi.fn();
     const el = montar(<PantallaLogin onIngresar={onIngresar} />);
-    const [inputUsuario, inputClave] = el.querySelectorAll("input");
-    setVal(inputUsuario, "juani");
+    const [inputEmail, inputClave] = el.querySelectorAll("input");
+    setVal(inputEmail, "juani@lanuna.com");
     setVal(inputClave, "costos2026");
-    act(() => inputClave.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
-    expect(onIngresar).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      inputClave.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      await esperar();
+    });
+    expect(iniciarSesion).toHaveBeenCalledTimes(1);
   });
 
   it("el ojito alterna entre ocultar y mostrar la contraseña", () => {
