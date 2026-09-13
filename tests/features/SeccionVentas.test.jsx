@@ -38,6 +38,7 @@ function propsBase(overrides = {}) {
     platosCalc: PLATOS_CALC,
     borrar: vi.fn(),
     borrarPedidoVenta: vi.fn(),
+    onRegistrarVenta: vi.fn().mockResolvedValue(true),
     toast: vi.fn(),
     cfg: { unidades: {} },
     setCfg: vi.fn(),
@@ -79,23 +80,41 @@ describe("SeccionVentas — carrito y confirmación", () => {
     expect(btn.disabled).toBe(true);
   });
 
-  it("confirmar venta guarda todos los ítems con el mismo pedidoId y limpia el carrito", () => {
-    const setData = vi.fn();
-    const el = montar(<SeccionVentas {...propsBase({ setData })} />);
+  it("confirmar venta llama a onRegistrarVenta con fecha, medio de pago y el carrito, y limpia el carrito si sale bien", async () => {
+    const onRegistrarVenta = vi.fn().mockResolvedValue(true);
+    const el = montar(<SeccionVentas {...propsBase({ onRegistrarVenta })} />);
     const selectPlato = [...el.querySelectorAll("select")].find((s) => [...s.options].some((o) => o.value === "__nuevo__"));
     setVal(selectPlato, "p1");
     click(el, "Agregar al pedido");
-    click(el, "Confirmar venta");
+    await act(async () => {
+      click(el, "Confirmar venta");
+      await Promise.resolve();
+    });
 
-    expect(setData).toHaveBeenCalledTimes(1);
-    const actualizador = setData.mock.calls[0][0];
-    const resultado = actualizador({ ventas: [] });
-    expect(resultado.ventas).toHaveLength(1);
-    expect(resultado.ventas[0].platoNombre).toBe("Chocotorta");
-    expect(resultado.ventas[0].pedidoId).toBeTruthy();
+    expect(onRegistrarVenta).toHaveBeenCalledTimes(1);
+    const [fecha, medioPago, carrito] = onRegistrarVenta.mock.calls[0];
+    expect(fecha).toBeTruthy();
+    expect(medioPago).toBeTruthy();
+    expect(carrito).toHaveLength(1);
+    expect(carrito[0].platoNombre).toBe("Chocotorta");
 
-    // El carrito se vació: ya no aparece "Total del pedido"
+    // El carrito se vació porque onRegistrarVenta resolvió true: ya no aparece "Total del pedido"
     expect(el.textContent).not.toContain("Total del pedido");
+  });
+
+  it("si onRegistrarVenta falla, el carrito no se vacía (para no perder lo cargado)", async () => {
+    const onRegistrarVenta = vi.fn().mockResolvedValue(false);
+    const el = montar(<SeccionVentas {...propsBase({ onRegistrarVenta })} />);
+    const selectPlato = [...el.querySelectorAll("select")].find((s) => [...s.options].some((o) => o.value === "__nuevo__"));
+    setVal(selectPlato, "p1");
+    click(el, "Agregar al pedido");
+    await act(async () => {
+      click(el, "Confirmar venta");
+      await Promise.resolve();
+    });
+
+    expect(onRegistrarVenta).toHaveBeenCalledTimes(1);
+    expect(el.textContent).toContain("Total del pedido");
   });
 
   it("quitar un ítem del carrito antes de confirmar lo saca de la lista", () => {
