@@ -4,6 +4,7 @@ import PantallaLogin from "./auth/PantallaLogin.jsx";
 import App from "./App.jsx";
 import { dbConfigurada, obtenerSesion, cerrarSesion, alCambiarSesion } from "./services/supabase.js";
 import { obtenerMembership } from "./services/datos.js";
+import { reportarError } from "./services/monitoreo.js";
 
 function AppConLogin() {
   // "cargando": todavía no sabemos si hay sesión o no (evita el parpadeo de
@@ -16,6 +17,7 @@ function AppConLogin() {
       const membership = await obtenerMembership(session.user.id);
       setEstado({ cargando: false, sesion: session, membership, error: null });
     } catch (e) {
+      reportarError(e, { accion: "obtenerMembership", usuarioId: session.user.id });
       // Sesión válida pero sin membresía en ninguna empresa — no le asignamos
       // ningún rol por las dudas (RolContext no llega a proveerse), la dejamos
       // afuera con un mensaje claro en vez de dejarla entrar con permisos por defecto.
