@@ -362,3 +362,21 @@ describe("App — categorías, benchmark, config y precios masivos", () => {
     expect(db.actualizarUnidadesMasivo).toHaveBeenCalledWith([{ platoId: "p1", unidades: expect.any(Number) }]);
   });
 });
+
+describe("App — aviso de sin conexión", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("no muestra el aviso mientras hay conexión", async () => {
+    const el = await montarYCargar();
+    expect(el.textContent).not.toContain("Estás sin conexión");
+  });
+
+  it("muestra el aviso apenas el navegador se queda sin conexión, y desaparece al volver", async () => {
+    const el = await montarYCargar();
+    await act(async () => { window.dispatchEvent(new Event("offline")); });
+    expect(el.textContent).toContain("Estás sin conexión");
+
+    await act(async () => { window.dispatchEvent(new Event("online")); });
+    expect(el.textContent).not.toContain("Estás sin conexión");
+  });
+});
