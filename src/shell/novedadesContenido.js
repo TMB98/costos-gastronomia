@@ -1,5 +1,12 @@
 const NOVEDADES = [
   {
+    version: "1.18",
+    fecha: "14/09/2026",
+    items: [
+      "Si se corta la conexión a internet, ahora la app te avisa con un mensaje arriba de todo — antes te enterabas recién al intentar guardar algo.",
+    ],
+  },
+  {
     version: "1.17",
     fecha: "13/09/2026",
     items: [
