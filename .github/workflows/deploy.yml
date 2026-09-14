@@ -1,9 +1,15 @@
 name: Publicar en GitHub Pages
 
-# Se dispara solo cuando subís algo a la rama "main".
+# Corre en dos casos:
+# - Pull Request contra "main": corre los tests y el build, PERO NO publica
+#   nada — es el chequeo que tiene que salir verde antes de poder mergear.
+# - Push directo a "main" (o después de mergear un PR): corre todo Y además
+#   publica en GitHub Pages.
 # Nada de esto corre en tu compu — todo pasa en los servidores de GitHub.
 on:
   push:
+    branches: ["main"]
+  pull_request:
     branches: ["main"]
   workflow_dispatch: # también te deja apretar "Run workflow" a mano desde la web si querés
 
@@ -50,6 +56,10 @@ jobs:
 
   deploy:
     needs: build
+    # Solo publica en un push real a main (o "Run workflow" manual) — nunca
+    # en un Pull Request todavía sin mergear, para no pisar producción con
+    # un cambio que no se terminó de aprobar.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
