@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback, useContext } 
 import { usePuedeEditar, usePuedeVentas, RolContext } from "./auth/usuarios.js";
 import { uid } from "./lib/formato.js";
 import { calcPlato, netoDe, semaforo, cfMensual } from "./lib/calculos.js";
+import { useEnLinea } from "./lib/useEnLinea.js";
 import { reportarError } from "./services/monitoreo.js";
 import {
   cargarTodo,
@@ -46,6 +47,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
   const [data, setData] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState(null);
+  const enLinea = useEnLinea();
   const [tab, setTab] = useState("materias");
   const navScrollRef = useRef(null);
 
@@ -488,6 +490,11 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+      {!enLinea && (
+        <div className="bg-amber-500 px-4 py-2 text-center text-sm font-medium text-white">
+          ⚠️ Estás sin conexión a internet — lo que ya estaba cargado lo podés seguir viendo, pero nada nuevo se va a poder guardar hasta que vuelva la señal.
+        </div>
+      )}
       <header style={{ backgroundColor: NAVY }} className="relative px-5 py-3.5 text-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
           <h1 className="flex items-baseline gap-2 leading-none">
