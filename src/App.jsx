@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback, useContext } 
 import { usePuedeEditar, usePuedeVentas, RolContext } from "./auth/usuarios.js";
 import { uid } from "./lib/formato.js";
 import { calcPlato, netoDe, semaforo, cfMensual } from "./lib/calculos.js";
+import { reportarError } from "./services/monitoreo.js";
 import {
   cargarTodo,
   crearIngrediente as dbCrearIngrediente, actualizarIngrediente as dbActualizarIngrediente, borrarIngrediente as dbBorrarIngrediente,
@@ -90,6 +91,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
         const datos = await cargarTodo(companyId);
         setData(datos);
       } catch (e) {
+        reportarError(e, { accion: "cargarTodo", companyId });
         setErrorCarga("No se pudieron cargar los datos. Probá recargar la página en un momento.");
       } finally {
         setCargando(false);
@@ -112,6 +114,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
     try {
       await dbActualizarConfiguracion(companyId, { [k]: v });
     } catch (e) {
+      reportarError(e, { accion: "setCfg", campo: k });
       toast("❌ No se pudo guardar ese cambio de configuración");
     }
   };
@@ -186,6 +189,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
       }));
       setModal(null); toast("✅ Ingrediente guardado");
     } catch (e) {
+      reportarError(e, { accion: "guardarIng", esNuevo, ingredienteId: ing.id });
       toast(`❌ No se pudo guardar: ${e.message || "error desconocido"}`);
     }
   };
@@ -205,6 +209,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
       if (esNuevo) setPlatoRecienCreado(p.id);
       setModal(null); toast("✅ Plato guardado");
     } catch (e) {
+      reportarError(e, { accion: "guardarPlato", esNuevo, platoId: p.id });
       toast(`❌ No se pudo guardar: ${e.message || "error desconocido"}`);
     }
   };
@@ -234,6 +239,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
       toast("📋 Plato duplicado — ajustá lo que necesites");
       setModal({ tipo: "plato", item: limpio });
     } catch (e) {
+      reportarError(e, { accion: "duplicarPlato", platoOriginalId: p.id });
       toast(`❌ No se pudo duplicar: ${e.message || "error desconocido"}`);
     }
   };
@@ -243,6 +249,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
     try {
       await dbActualizarUnidadesEstimadas(platoId, unidades);
     } catch (e) {
+      reportarError(e, { accion: "cambiarUnidadEstimada", platoId });
       toast("❌ No se pudo guardar la estimación de unidades");
     }
   };
@@ -257,6 +264,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
         return { ...d, config: { ...d.config, unidades: nuevasUnidades } };
       });
     } catch (e) {
+      reportarError(e, { accion: "actualizarUnidadesMasivo", cantidadCambios: cambios.length });
       toast("❌ No se pudieron actualizar las estimaciones");
     }
   };
@@ -274,6 +282,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
       }));
       toast(`✅ Precio actualizado en ${cambios.length} plato${cambios.length > 1 ? "s" : ""}`);
     } catch (e) {
+      reportarError(e, { accion: "aplicarPreciosPlatosMasivo", cantidadCambios: cambios.length });
       toast("❌ No se pudieron actualizar los precios");
     }
   };
@@ -291,6 +300,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
       }));
       setModal(null); toast("✅ Costo fijo guardado");
     } catch (e) {
+      reportarError(e, { accion: "guardarCF", esNuevo, costoFijoId: c.id });
       toast(`❌ No se pudo guardar: ${e.message || "error desconocido"}`);
     }
   };
@@ -315,6 +325,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
     try {
       await ACCIONES_BORRAR[tipo].borrar(id);
     } catch (e) {
+      reportarError(e, { accion: "borrar", tipo, id });
       toast(`❌ ${e.message || "No se pudo borrar"}`);
       return;
     }
@@ -330,6 +341,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
             return { ...d2, [tipo]: listaActual };
           });
         } catch (e) {
+          reportarError(e, { accion: "deshacerBorrar", tipo, id });
           toast("❌ No se pudo deshacer — puede que ya lo hayas creado de nuevo");
         }
       },
@@ -354,6 +366,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
     } catch (e) {
       // Ojo: no vaciamos el carrito acá — eso lo decide quien llama, así la
       // persona no pierde el pedido que ya armó si esto falla.
+      reportarError(e, { accion: "registrarVenta", pedidoId, cantidadItems: items.length });
       toast(`❌ No se pudo registrar la venta: ${e.message || "error desconocido"}`);
       return false;
     }
@@ -368,6 +381,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
     try {
       correccionId = await dbBorrarPedido(pedidoId, motivo, usuarioId);
     } catch (e) {
+      reportarError(e, { accion: "borrarPedidoVenta", pedidoId });
       toast(`❌ No se pudo borrar la venta: ${e.message || "error desconocido"}`);
       return;
     }
@@ -397,6 +411,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
             correccionesVentas: (d2.correccionesVentas || []).filter((c) => c.id !== correccionId),
           }));
         } catch (e) {
+          reportarError(e, { accion: "deshacerBorradoPedido", correccionId });
           toast("❌ No se pudo deshacer");
         }
       },
@@ -407,17 +422,17 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
   const agregarCategoriaIngrediente = async (nombre) => {
     const nuevas = [...(cfg.categoriasIngredientes || CAT_ING), nombre];
     setData((d) => ({ ...d, config: { ...d.config, categoriasIngredientes: nuevas } }));
-    try { await dbAgregarCategoria(companyId, "ingrediente", nombre); } catch (e) { toast("❌ No se pudo guardar la categoría"); }
+    try { await dbAgregarCategoria(companyId, "ingrediente", nombre); } catch (e) { reportarError(e, { accion: "agregarCategoria", tipo: "ingrediente" }); toast("❌ No se pudo guardar la categoría"); }
   };
   const agregarCategoriaPlato = async (nombre) => {
     const nuevas = [...(cfg.categoriasPlatos || CAT_PLATO), nombre];
     setData((d) => ({ ...d, config: { ...d.config, categoriasPlatos: nuevas } }));
-    try { await dbAgregarCategoria(companyId, "plato", nombre); } catch (e) { toast("❌ No se pudo guardar la categoría"); }
+    try { await dbAgregarCategoria(companyId, "plato", nombre); } catch (e) { reportarError(e, { accion: "agregarCategoria", tipo: "plato" }); toast("❌ No se pudo guardar la categoría"); }
   };
   const agregarCategoriaCosto = async (nombre) => {
     const nuevas = [...(cfg.categoriasCostos || CAT_COSTO_DEFAULT), nombre];
     setData((d) => ({ ...d, config: { ...d.config, categoriasCostos: nuevas } }));
-    try { await dbAgregarCategoria(companyId, "costo", nombre); } catch (e) { toast("❌ No se pudo guardar la categoría"); }
+    try { await dbAgregarCategoria(companyId, "costo", nombre); } catch (e) { reportarError(e, { accion: "agregarCategoria", tipo: "costo" }); toast("❌ No se pudo guardar la categoría"); }
   };
 
   /* ---------- Benchmarks (Reportería) ---------- */
@@ -429,6 +444,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
     try {
       await dbActualizarBenchmark(id, { [campo]: Number(valor) });
     } catch (e) {
+      reportarError(e, { accion: "actualizarBenchmark", id, campo });
       toast("❌ No se pudo guardar el benchmark");
     }
   };
@@ -455,6 +471,7 @@ function App({ usuarioActual, usuarioId, companyId, onCerrarSesion }) {
       }));
       setModal(null); toast("✅ Precios actualizados");
     } catch (e) {
+      reportarError(e, { accion: "aplicarPreciosMasivo", cantidadCambios: cambios.length });
       toast(`❌ No se pudieron actualizar los precios: ${e.message || "error desconocido"}`);
     }
   };
