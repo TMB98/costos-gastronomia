@@ -5,6 +5,7 @@ import Modal from "../components/Modal.jsx";
 import Campo from "../components/Campo.jsx";
 import Boton from "../components/Boton.jsx";
 import { cambiarPropiaClave } from "../services/supabase.js";
+import { reportarError } from "../services/monitoreo.js";
 
 function ModalCambiarClave({ onClose }) {
   const [nueva, setNueva] = useState("");
@@ -23,6 +24,7 @@ function ModalCambiarClave({ onClose }) {
       await cambiarPropiaClave(nueva);
       setExito(true);
     } catch (e) {
+      reportarError(e, { accion: "cambiarPropiaClave" }); // nunca pasar la contraseña acá
       setError("No se pudo cambiar la contraseña. Probá de nuevo en un momento.");
     } finally {
       setGuardando(false);
