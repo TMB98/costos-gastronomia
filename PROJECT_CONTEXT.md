@@ -175,9 +175,16 @@ Implementado en esta sesión:
 - `.github/workflows/backup.yml`: backup diario automático de la base
   (esquema `public`, formato custom de `pg_dump`), guardado como artifact
   de GitHub Actions (retención 90 días), más botón para disparar un backup
-  a mano. Requiere un secret nuevo en GitHub: `SUPABASE_DB_URL` (connection
-  string directo de Postgres, no la anon key) — **pendiente que Tomi lo
-  cargue**, sacándolo de Supabase Dashboard → Settings → Database.
+  a mano. Requiere el secret `SUPABASE_DB_URL` (connection string directo
+  de Postgres vía "Session pooler" de Supabase, no la anon key).
+  **Confirmado funcionando en producción (13/09/2026)**: corrida manual
+  en verde, primer backup real guardado. Gotcha real al armar el secret,
+  anotado para no repetirlo: hay que usar específicamente "Session pooler"
+  (no "Direct connection", que pide un add-on pago de IPv4; no
+  "Transaction pooler", que no soporta `pg_dump` bien) y el usuario tiene
+  que ser `postgres.<project-ref>` (con el punto), no `postgres` solo.
+  Mejor armar el connection string escribiéndolo de cero que editando un
+  string ya pegado (mucho más propenso a error de tipeo).
   No cubre el esquema `auth` (usuarios/contraseñas) — Supabase lo maneja
   aparte.
 - `RUNBOOK.md` nuevo: guía de "pasó esto → hacé esto" para: app no carga,
@@ -192,22 +199,35 @@ Implementado en esta sesión:
   construirlo todavía** — se prueba primero contra el proyecto de
   desarrollo de Supabase (siguiente punto pendiente) antes de confiar en
   algo así para producción.
+- **Logging + monitoreo de errores con `@sentry/react`**: módulo nuevo
+  `src/services/monitoreo.js`, mismo patrón que `dbConfigurada` — si no
+  hay `VITE_SENTRY_DSN` configurado, es un no-op total (no rompe nada en
+  desarrollo/tests). `main.jsx` inicializa el monitoreo y envuelve la app
+  en un `ErrorBoundary` (si React se rompe del todo, se ve un mensaje +
+  botón de recargar en vez de pantalla en blanco). Se agregó
+  `reportarError(...)` en 21 de los 23 `catch` que ya existían en toda la
+  app (`App.jsx`, `AppConLogin.jsx`, `MenuConfiguracion.jsx`,
+  `ModalCambiarClave.jsx`), cada uno con contexto de qué acción falló.
+  Los 2 que quedaron afuera a propósito: login con contraseña incorrecta,
+  y subir un archivo de respaldo mal formado — son errores esperados del
+  usuario, no fallas de la app, reportarlos sería solo ruido. Suite en
+  275/275, build limpio (bundle subió de ~319KB a ~337KB por la librería).
+  **Pendiente: que Tomi cree la cuenta gratis en sentry.io y pase el DSN**
+  para cargarlo como secret `VITE_SENTRY_DSN` (no es secreto en sí, pero
+  va como variable de entorno igual que las de Supabase).
 
 Pendiente de esta etapa, en orden de prioridad:
-1. Tomi carga el secret `SUPABASE_DB_URL` en GitHub para que el backup
-   funcione (sin esto, el workflow de backup está armado pero no puede
-   correr).
-2. Logging + monitoreo de errores con Sentry (plan gratuito) — requiere que
-   Tomi cree la cuenta y consiga el DSN, Claude integra el código.
-3. Crear `supabase/migrations/` con el esquema actual versionado como
+1. Tomi crea la cuenta en sentry.io y pasa el DSN (Sentry ya está
+   integrado en el código, solo falta esto para que empiece a reportar).
+2. Crear `supabase/migrations/` con el esquema actual versionado como
    punto de partida.
-4. Segundo proyecto de Supabase (gratis) para desarrollo, sin datos reales.
-5. Pasar de push directo a `main` a flujo con Pull Request + protección de
+3. Segundo proyecto de Supabase (gratis) para desarrollo, sin datos reales.
+4. Pasar de push directo a `main` a flujo con Pull Request + protección de
    rama (configuración de GitHub, no código).
-6. Banner de "estás sin conexión" en la app (chico).
-7. Probar el restore de verdad contra el proyecto de desarrollo, una vez
+5. Banner de "estás sin conexión" en la app (chico).
+6. Probar el restore de verdad contra el proyecto de desarrollo, una vez
    exista.
-8. Opcional/baja prioridad: ping de disponibilidad (ej. UptimeRobot) a la
+7. Opcional/baja prioridad: ping de disponibilidad (ej. UptimeRobot) a la
    URL de producción.
 
 ## 14. Pendientes activos (sin arrancar), por tamaño
