@@ -11,6 +11,7 @@
     "validate": "npm run test && npm run build"
   },
   "dependencies": {
+    "@sentry/react": "^10.74.0",
     "@supabase/supabase-js": "^2.116.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
