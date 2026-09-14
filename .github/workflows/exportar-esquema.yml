@@ -1,0 +1,21 @@
+name: Exportar esquema de la base (solo lectura, a mano)
+
+# Workflow de un solo uso: imprime el esquema completo (tablas, columnas,
+# funciones, RLS) del schema "public" en el log de esta misma corrida, para
+# copiarlo y armar la primera migración versionada en supabase/migrations/.
+# NO modifica nada — es de solo lectura (pg_dump --schema-only), no toca
+# datos ni estructura. Se dispara solo a mano, nunca automático.
+on:
+  workflow_dispatch:
+
+jobs:
+  exportar:
+    runs-on: ubuntu-latest
+    container:
+      image: postgres:17-alpine
+    steps:
+      - name: Volcar el esquema (sin datos) del schema "public"
+        run: |
+          echo "===== ESQUEMA COMPLETO (copiar desde acá hasta el final) ====="
+          pg_dump "${{ secrets.SUPABASE_DB_URL }}" --schema=public --schema-only --no-owner --no-privileges
+          echo "===== FIN DEL ESQUEMA ====="
