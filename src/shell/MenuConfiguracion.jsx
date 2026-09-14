@@ -7,6 +7,7 @@ import ConTooltip from "../components/ConTooltip.jsx";
 import ModalManual from "./ModalManual.jsx";
 import ModalCambiarClave from "./ModalCambiarClave.jsx";
 import { usePuedeEditar, RolContext } from "../auth/usuarios.js";
+import { reportarError } from "../services/monitoreo.js";
 
 function MenuConfiguracion({ data, setData, toast, setConfirmar, oscuro, setOscuro, usuarioActual, onCerrarSesion }) {
   const [abierto, setAbierto] = useState(false);
@@ -29,6 +30,7 @@ function MenuConfiguracion({ data, setData, toast, setConfirmar, oscuro, setOscu
       URL.revokeObjectURL(url);
       toast("💾 Respaldo descargado");
     } catch (e) {
+      reportarError(e, { accion: "descargarRespaldo" });
       toast("⚠️ No se pudo generar el respaldo");
     }
     setAbierto(false);
