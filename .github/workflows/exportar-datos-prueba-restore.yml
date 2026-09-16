@@ -1,0 +1,32 @@
+name: Exportar datos para probar restore (solo lectura, a mano)
+
+# Workflow de un solo uso para la prueba de restore de Etapa 5: vuelca los
+# DATOS (no solo el esquema) de producción en formato SQL de texto plano
+# (INSERT normales, no COPY — así se puede pegar directo en el SQL Editor
+# de Supabase, sin necesitar pg_restore/psql). Excluye "memberships" y
+# "perfiles" a propósito: esas dos dependen de los usuarios reales de
+# Supabase Auth de PRODUCCIÓN, que no existen en el proyecto de desarrollo
+# — restaurarlas ahí fallaría por FK. El resto de las tablas de negocio no
+# tiene esa dependencia.
+# NO modifica nada — es de solo lectura, no toca producción para nada.
+on:
+  workflow_dispatch:
+
+jobs:
+  exportar:
+    runs-on: ubuntu-latest
+    container:
+      image: postgres:17-alpine
+    steps:
+      - name: Volcar los datos (formato texto plano, sin memberships ni perfiles)
+        run: |
+          echo "===== DATOS COMPLETOS (copiar desde acá hasta el final) ====="
+          pg_dump "${{ secrets.SUPABASE_DB_URL }}" \
+            --schema=public \
+            --data-only \
+            --column-inserts \
+            --no-owner \
+            --no-privileges \
+            --exclude-table=public.memberships \
+            --exclude-table=public.perfiles
+          echo "===== FIN DE LOS DATOS ====="
