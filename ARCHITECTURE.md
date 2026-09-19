@@ -99,7 +99,7 @@ src/
     └── reportes/                SeccionReportes (KPIs, benchmarks editables,
                                 paneles).
 
-tests/                         Misma estructura que src/, en espejo. ~280 tests.
+tests/                         Misma estructura que src/, en espejo. 270 tests.
 ```
 
 ## Dónde vive cada cosa
@@ -176,7 +176,7 @@ tests/                         Misma estructura que src/, en espejo. ~280 tests.
 
 ## Testing
 
-`npm test` corre todo con Vitest (~280 tests). `npm run validate` corre tests +
+`npm test` corre todo con Vitest (270 tests). `npm run validate` corre tests +
 build en un solo comando — usarlo antes de dar cualquier cambio por
 terminado. Cobertura fuerte en `lib/` (cálculos puros), en `services/datos.js`
 (las 21 funciones, mockeando el cliente de Supabase), en `App.jsx` (handlers
