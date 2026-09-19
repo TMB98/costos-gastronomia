@@ -5,6 +5,15 @@ sección es: "pasó esto → hacé esto".
 
 ---
 
+---
+
+## ¿Cómo me entero si la app se cae?
+
+Hay un monitor automático (UptimeRobot, plan gratis) que revisa la URL de
+producción cada 5 minutos y te manda un mail apenas deja de responder — no
+hace falta que vos ni Juani estén mirando. Si te llega ese mail, empezá por
+la sección de abajo.
+
 ## La aplicación no carga
 
 1. Probá en una ventana de incógnito (descarta problema de caché del navegador).
@@ -89,11 +98,18 @@ punto de Migraciones en `PROJECT_CONTEXT.md`._
    - O alguien con `pg_restore` instalado (en Mac: `brew install libpq`)
      corriendo: `pg_restore --clean --if-exists --no-owner --no-privileges
      --dbname="<SUPABASE_DB_URL>" archivo.dump`
-4. **Este procedimiento todavía no se probó de punta a punta.** El plan es
-   probarlo contra el proyecto de Supabase de DESARROLLO (pendiente de
-   crear, ver Etapa 5) antes de confiar en él para una emergencia real
-   contra producción — restaurar a ciegas sobre los datos reales de Juani
-   sin haberlo probado antes sería peligroso.
+4. **Este procedimiento con `pg_restore` (el mecanismo de arriba, con el
+   archivo `.dump`) todavía no se probó de punta a punta** — requiere
+   acceso de red completo, que recién vas a tener con Claude Code.
+   **Lo que SÍ está probado y confirmado (16/09/2026):** que los datos de
+   negocio SE PUEDEN recuperar de verdad. Se hizo la prueba completa contra
+   el proyecto de desarrollo (`la-nuna-desarrollo`, ya existe, no hace
+   falta crearlo) usando un método alternativo — un dump en SQL de texto
+   plano pegado en el SQL Editor de Supabase, sin pasar por `pg_restore` —
+   y las 13 tablas de negocio (536 filas) se restauraron sin errores.
+   Cuando tengas Claude Code, pedile que haga la prueba "real" con
+   `pg_restore` contra el mismo proyecto de desarrollo antes de confiar en
+   ella para una emergencia real contra producción.
 
 ## Una credencial fue expuesta
 
@@ -112,5 +128,5 @@ punto de Migraciones en `PROJECT_CONTEXT.md`._
 
 ---
 
-*Última actualización: 13/09/2026, junto con el resto de la Etapa 5
-(Operación productiva) documentada en `PROJECT_CONTEXT.md`.*
+*Última actualización: 19/09/2026, con la Etapa 5 (Operación productiva)
+cerrada al 100% — ver `PROJECT_CONTEXT.md`.*

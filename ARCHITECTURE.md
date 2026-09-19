@@ -42,6 +42,9 @@ src/
 │   ├── formato.js             $, $0, pct1, fechaCorta, hoyISO, uid, nf0/nf2.
 │   ├── ordenar.js              compararValores, ordenarLista (ordenamiento de tablas).
 │   ├── useOrdenTabla.js         Hook de estado columna/dirección para ordenar.
+│   ├── useEnLinea.js            Hook de conexión (navigator.onLine + eventos
+│   │                           online/offline) — alimenta el banner de "sin
+│   │                           conexión" en App.jsx.
 │   └── datosDemo.js            Genera un dataset de ejemplo (default export).
 │
 ├── services/                 ÚNICA puerta a Supabase — nada más en el proyecto
@@ -49,10 +52,13 @@ src/
 │   ├── supabase.js            Cliente de Supabase + Auth: iniciarSesion,
 │   │                          cerrarSesion, cambiarPropiaClave, obtenerSesion,
 │   │                          alCambiarSesion, obtenerPerfil, dbConfigurada.
-│   └── datos.js                Las 21 funciones CRUD/RPC contra las tablas
+│   ├── datos.js                Las 21 funciones CRUD/RPC contra las tablas
 │                              relacionales (ingredientes, platos, ventas, etc.)
 │                              — ver PROJECT_CONTEXT.md punto 7 para el modelo
 │                              de datos completo.
+│   └── monitoreo.js             Sentry: iniciarMonitoreo(), reportarError(...),
+│                               LimiteDeErrores (ErrorBoundary). No-op total si
+│                               no hay VITE_SENTRY_DSN — nunca rompe tests/dev.
 │
 ├── auth/
 │   ├── usuarios.js            RolContext + hooks de permiso: usePuedeEditar,
@@ -93,7 +99,7 @@ src/
     └── reportes/                SeccionReportes (KPIs, benchmarks editables,
                                 paneles).
 
-tests/                         Misma estructura que src/, en espejo. ~275 tests.
+tests/                         Misma estructura que src/, en espejo. ~280 tests.
 ```
 
 ## Dónde vive cada cosa
@@ -170,7 +176,7 @@ tests/                         Misma estructura que src/, en espejo. ~275 tests.
 
 ## Testing
 
-`npm test` corre todo con Vitest (~275 tests). `npm run validate` corre tests +
+`npm test` corre todo con Vitest (~280 tests). `npm run validate` corre tests +
 build en un solo comando — usarlo antes de dar cualquier cambio por
 terminado. Cobertura fuerte en `lib/` (cálculos puros), en `services/datos.js`
 (las 21 funciones, mockeando el cliente de Supabase), en `App.jsx` (handlers
@@ -181,7 +187,12 @@ llamada real a Supabase en ningún test.
 
 ## Deploy
 
-GitHub Actions (`.github/workflows/deploy.yml`) → GitHub Pages. Se dispara
-solo con push a `main`: corre tests → si pasan, compila → publica. Ver
+GitHub Actions (`.github/workflows/deploy.yml`) → GitHub Pages. `main` está
+protegida: todo cambio va por rama → Pull Request → el check `build` (tests +
+compilación) tiene que salir verde → merge. El paso de publicar corre solo en
+push real a `main` (nunca en un PR sin mergear). Otros workflows de solo
+lectura, disparo manual, en `.github/workflows/`: `backup.yml` (backup diario
+de la base), `exportar-esquema.yml` y `exportar-datos-prueba-restore.yml`
+(sacar fotos de esquema/datos para migraciones). Ver
 `PROJECT_CONTEXT.md` para el estado de CI/CD, ambientes, backups y el resto
 de la operación productiva (Etapa 5).
