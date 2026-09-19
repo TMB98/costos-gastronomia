@@ -74,7 +74,7 @@ Decisiones de diseño importantes:
 
 ## 8. Estrategia de testing
 
-- **255 tests, Vitest, todos pasando (255/255). Comando: `npm test`.** `npm run validate` corre `npm test && npm run build` en un solo paso — usarlo antes de dar cualquier cambio por terminado.
+- **270 tests, Vitest, todos pasando (270/270). Comando: `npm test`.** `npm run validate` corre `npm test && npm run build` en un solo paso — usarlo antes de dar cualquier cambio por terminado. Verificado contra el repo real el 19/09/2026: `npm ci` limpio, `npm test` 270/270, `vite build` sin errores, `npm run validate` OK de punta a punta. (El número de tests cambia con cada feature nueva — las entradas fechadas más abajo, ej. "275/275" del 13/09/2026, reflejan el conteo de ese momento, no el actual.)
 - `services/datos.js` (21 funciones): las 21 tienen test directo (`tests/services/datos.test.js`, 39 tests), mockeando el cliente de Supabase en el límite exacto donde `datos.js` lo importa.
 - `App.jsx`: tiene test propio (`tests/App.test.jsx`, 22 tests) cubriendo sus handlers de negocio principales — guardar/editar/borrar+deshacer en las 3 secciones de catálogo, ventas, categorías, benchmarks, precios masivos — con caminos de éxito y de error. Se monta `<App/>` directo (sin pasar por login), mockeando `services/datos.js` completo.
 - Tests de integración (`tests/integration/app.test.jsx`, 7 tests) montan la app completa (login → sesión → datos → navegación) mockeando en el límite de servicios: `services/supabase.js` (auth) y `services/datos.js` (todas las tablas) — no hay llamada real a Supabase en ningún test.
@@ -121,7 +121,7 @@ En `src/features/pricing/SeccionPricing.jsx`, la tabla que compara el margen obj
 - 🟡 Clave `anon` de Supabase históricamente expuesta en un repo público — rotación pendiente, no urgente (RLS ya la limita).
 - 🟡 Modo oscuro tiene fondos de color hardcodeados sin variante oscura (`VERDE_BG`/`AMARILLO_BG`/`ROJO_BG` en `config/constants.js`, afecta 14 archivos) — causa raíz encontrada, sin arreglar.
 - 🟡 Navegación mobile: barra de pestañas horizontal con auto-scroll (`navScrollRef` en App.jsx) que hace "saltar" la pantalla al tocar una pestaña — causa confirmada en código.
-- 🟢 Bundle de producción ~540kB (aviso de Vite por tamaño de chunk) — no urgente para el tamaño actual de la app.
+- 🟢 Bundle de producción real (verificado 19/09/2026): JS 337.6kB (gzip 99.8kB) + CSS 26.1kB (gzip 5.5kB) — por debajo del umbral de aviso de Vite (500kB), sin warning de chunk size en el build actual.
 
 ## 12. Funcionalidades ya implementadas (resumen)
 
@@ -136,6 +136,12 @@ Materias primas (con historial de precios y actualización masiva) · Platos/rec
 | 3. Base de datos relacional + concurrencia | ✅ Completa, en producción, verificada |
 | 4. QA/testing/robustez | ✅ Completa (13/09/2026) — 255/255 tests, `datos.js` y `App.jsx` con test propio, E2E venta→Reportería, `npm run validate`, CI corre tests antes de deployar. Pendiente menor: seguir sumando tests a medida que se agreguen features nuevas (no es un "terminado para siempre") |
 | 5. Operación productiva / Production Readiness | ✅ Completa (18/09/2026) — ver sección 13.1 |
+| 5.5 Flujo profesional de desarrollo | 🔵 En curso — fase actual (arrancada 19/09/2026) |
+| 6. Backoffice SaaS | ⚪ Pendiente, no iniciada |
+| 6.5 Product Analytics / telemetría | ⚪ Pendiente, no iniciada |
+| 7. Product Value Review | ⚪ Pendiente, no iniciada |
+| 7.5 UX/UI + Design System 2026 | ⚪ Pendiente, no iniciada |
+| 8. Evolución funcional validada | ⚪ Pendiente, no iniciada |
 
 ## 13.1 Etapa 5 — Operación productiva / Production Readiness — ✅ CERRADA (18/09/2026)
 
