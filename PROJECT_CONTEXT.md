@@ -136,8 +136,8 @@ Materias primas (con historial de precios y actualización masiva) · Platos/rec
 | 3. Base de datos relacional + concurrencia | ✅ Completa, en producción, verificada |
 | 4. QA/testing/robustez | ✅ Completa (13/09/2026) — 255/255 tests, `datos.js` y `App.jsx` con test propio, E2E venta→Reportería, `npm run validate`, CI corre tests antes de deployar. Pendiente menor: seguir sumando tests a medida que se agreguen features nuevas (no es un "terminado para siempre") |
 | 5. Operación productiva / Production Readiness | ✅ Completa (18/09/2026) — ver sección 13.1 |
-| 5.5 Flujo profesional de desarrollo | 🔵 En curso — fase actual (arrancada 19/09/2026) |
-| 6. Backoffice SaaS | ⚪ Pendiente, no iniciada |
+| 5.5 Flujo profesional de desarrollo | ✅ Completa (19/09/2026) — ver sección 13.2 |
+| 6. Backoffice SaaS | ⚪ Pendiente, no iniciada — próxima fase |
 | 6.5 Product Analytics / telemetría | ⚪ Pendiente, no iniciada |
 | 7. Product Value Review | ⚪ Pendiente, no iniciada |
 | 7.5 UX/UI + Design System 2026 | ⚪ Pendiente, no iniciada |
@@ -209,6 +209,68 @@ No queda ningún pendiente abierto de esta etapa salvo la prueba real de
 `pg_restore` mencionada arriba (bloqueada por acceso de red, no por
 decisión).
 
+## 13.2 Etapa 5.5 — Flujo profesional de desarrollo — ✅ CERRADA (19/09/2026)
+
+Objetivo: dejar atrás el flujo manual (Claude Chat → copiar archivos →
+subir a mano por la web de GitHub) y pasar a Claude Code trabajando sobre
+branch propia → PR → CI → merge → producción.
+
+**Implementado y probado de punta a punta:**
+
+- **`CLAUDE.md`** (nuevo) — instrucciones operativas breves para Claude
+  Code: dónde está cada cosa, reglas no negociables, qué no tocar sin
+  necesidad, reglas de seguridad, criterio de lectura de contexto para no
+  releer el repo entero en cada tarea.
+- **`DEVELOPMENT_WORKFLOW.md`** (nuevo) — guía práctica para Tomi (no
+  desarrollador): qué es un commit/push/PR, cuándo abrir PR, cuándo
+  aprobar/mergear, qué hacer si algo sale mal. Incluye el modelo de
+  branches (`feature/`, `fix/`, `chore/`) y la convención de commits
+  (`feat:`/`fix:`/`refactor:`/`chore:`/`docs:`/`test:`).
+- **`.github/PULL_REQUEST_TEMPLATE.md`** (nuevo) — checklist mínimo
+  (validación corrida, changelog si corresponde, riesgos).
+- **Prueba piloto del circuito completo**: PR real
+  ([#7](https://github.com/TMB98/costos-gastronomia/pull/7)) — branch →
+  cambios → `npm run validate` local → commit → push → PR → check `build`
+  de CI en verde → aprobación explícita de Tomi → merge a `main` con
+  squash → CI/CD publicó solo. Sin fricción, sin pasos manuales fuera de
+  la aprobación final.
+- **CI/CD**: revisado, no necesitó cambios — `deploy.yml` ya corría
+  tests+build en PRs contra `main` desde la Etapa 5, y solo publica en
+  push real a `main`. El flujo de branch+PR ahora sí se usa de verdad.
+
+**Evaluado y decidido explícitamente NO hacer todavía:**
+
+- **Lint (ESLint)**: no se agrega. Resuelve un problema real (nada atrapa
+  hoy un hook mal usado o una variable sin usar antes del commit), pero
+  con 270 tests + build + el flujo de PR recién armado, el costo de
+  limpiar ~11 meses de código sin lint no se justifica todavía para un
+  equipo de una persona. Si se agrega en el futuro: `eslint` +
+  `eslint-plugin-react-hooks` + `eslint-plugin-react-refresh`, solo
+  `eslint:recommended` (sin reglas de estilo, eso es Prettier, otro
+  tema), sumado como paso más de `npm run validate`.
+- **`npm audit fix --force`**: no se ejecuta. Las 5 vulnerabilidades
+  detectadas (1 crítica, 1 alta, 3 moderadas) están **todas en
+  `devDependencies`** (`vitest`, `vite`, `esbuild` y su cadena de
+  dependencias) — ninguna llega al bundle que corre en el navegador de
+  Juani, cero impacto en producción. La crítica (lectura/ejecución
+  arbitraria de archivos) solo aplica si corre `vitest --ui`, que este
+  proyecto no usa. La alta es específica de Windows y solo aplica si se
+  expone el dev server (`npm run dev`) más allá de la propia compu. El
+  fix disponible (`vitest@5.0.1` + `vite@8.3.0`) es breaking change en
+  ambos — se posterga a un chore aparte y dedicado, no vale la pena
+  arriesgar el pipeline recién validado por un riesgo hoy inexistente en
+  producción.
+
+**Pendientes que quedan, pero son acción manual de Tomi en GitHub (no
+técnicos, no bloquean el cierre de esta etapa):**
+
+- Confirmar que la protección de rama sobre `main` esté activa (Settings
+  → Branches → regla sobre `main` → "Require a pull request before
+  merging" + "Require status checks to pass" con el check `build`).
+- Restringir el acceso de la Claude GitHub App para que solo llegue a
+  `costos-gastronomia` (Settings de la cuenta de GitHub → Applications →
+  Configure → "Only select repositories").
+
 ## 14. Pendientes activos (sin arrancar), por tamaño
 
 **Grandes:**
@@ -228,6 +290,8 @@ decisión).
 - Rotar la clave de Supabase expuesta
 - Colores de marca (en stand by, decisión de negocio pendiente de Tomi)
 - Reportar bug / reportar mejora desde la app
+- ⚠️ **Acción manual de Tomi en GitHub (Etapa 5.5, ver 13.2):** confirmar protección de rama sobre `main` + restringir la Claude GitHub App a solo este repo.
+- Actualizar `vitest`/`vite` (breaking change) para resolver las 5 vulnerabilidades de dependencias de desarrollo — sin impacto en producción hoy, ver 13.2. Postergado a un chore dedicado.
 
 ## 15. Instrucciones para futuros cambios
 
